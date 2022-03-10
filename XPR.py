@@ -421,7 +421,8 @@ ddc_pos -= ddc_pos.min(axis=0)
 # The XPR position is firstly approximated by queryng for the index of the
 # peaks in the bolometer signals
 xpr_dlx_nearest_index = np.apply_along_axis(find_peaks_2d, 0, dlx_pos,
-                                            distance=dlx_pos.shape[0]*0.66)
+                                            distance=dlx_pos.shape[0]*0.66,
+                                            height=dlx_pos.max()/4)
 xpr_ddc_nearest_index = np.apply_along_axis(find_peaks_2d, 0, ddc_pos,
                                             distance=ddc_pos.shape[0]*0.66)
 
