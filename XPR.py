@@ -382,6 +382,15 @@ time_Te_ld = time_Te_ld[start_index_Te_ld:end_index_Te_ld+1]
 Ne_ld = Ne_ld[:, start_index_Ne_ld:end_index_Ne_ld+1]
 time_Ne_ld = time_Ne_ld[start_index_Ne_ld:end_index_Ne_ld+1]
 
+# Sometimes time_dlx_filt and time_ddc_filt can be different in length, leading
+# to errors in subsequent computations. It's better to re-slice them in order
+# to let them have same array.shape[-1]
+length_index = min(time_dlx_filt.size, time_ddc_filt.size)
+dlx_filt = dlx_filt[:, :length_index]
+time_dlx_filt = time_dlx_filt[:length_index]
+ddc_filt = ddc_filt[:, :length_index]
+time_ddc_filt = time_ddc_filt[:length_index]
+
 print('Time selection: done')
 
 
