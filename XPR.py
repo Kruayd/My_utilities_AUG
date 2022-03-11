@@ -156,6 +156,15 @@ def find_peaks_2d(array, **kwargs):
     except:
         return array.argmax()
 
+# Find peaks function to apply over ddc axis through numpy. It returns also
+# information about which function was used (sg.find_peaks or np.argmax)
+def find_peaks_2d_info(array, **kwargs):
+    try:
+        peaks, _ = sg.find_peaks(array, **kwargs)
+        return np.array([peaks[0], 1])
+    except:
+        return np.array([array.argmax(), 0])
+
 
 
 # OPTIONS HANDLER
@@ -400,17 +409,17 @@ print('Time selection: done')
 # Remove first line of sight from DLX bolometer (usually it is just  a
 # reflection of the actual radiator) and bring everityhing above 0 (necessary
 # for weighted average)
-dlx_pos_keep = (dlx_sights != 1)
-dlx_pos = dlx_filt[dlx_pos_keep] - dlx_filt[dlx_pos_keep].min(axis=0)
-dlx_pos_sights = dlx_sights[dlx_pos_keep]
+dlx_index_keep = (dlx_sights != 1)
+dlx_filt_keep = dlx_filt[dlx_index_keep] - dlx_filt[dlx_index_keep].min(axis=0)
+dlx_sights_keep = dlx_sights[dlx_index_keep]
 
 # Remove sights 17, 18, 31, 32 from DDC bolometer (usually they are just
 # radiation from the separatrix) and bring everityhing above 0 (necessary for
 # weighted average)
-ddc_pos_keep = ((ddc_sights != 32) & (ddc_sights != 31) & (ddc_sights != 18) &
-                (ddc_sights != 17))
-ddc_pos = ddc_filt[ddc_pos_keep]
-ddc_pos_sights = ddc_sights[ddc_pos_keep]
+ddc_index_keep = ((ddc_sights != 32) & (ddc_sights != 31)
+                  & (ddc_sights != 18) & (ddc_sights != 17))
+ddc_filt_keep = ddc_filt[ddc_index_keep]
+ddc_sights_keep = ddc_sights[ddc_index_keep]
 # OLD CODE LEFT FOR REFERENCE
 # if detrend:
 #     print('Using scipy detrend non-deterministic method')
@@ -425,22 +434,32 @@ ddc_pos_sights = ddc_sights[ddc_pos_keep]
 #     c_off = ddc_pos[-1] - m_off*ddc_pos_sights[-1]
 #     ddc_pos = ddc_pos - (np.outer(ddc_pos_sights, m_off) + c_off)
 # # Everything is brought above 0 (necessary for weighted average)
-ddc_pos -= ddc_pos.min(axis=0)
+ddc_filt_keep -= ddc_filt_keep.min(axis=0)
 
 # The XPR position is firstly approximated by queryng for the index of the
-# peaks in the bolometer signals
-xpr_dlx_nearest_index = np.apply_along_axis(find_peaks_2d, 0, dlx_pos,
-                                            distance=dlx_pos.shape[0]*0.66,
-                                            height=dlx_pos.max()/4)
-xpr_ddc_nearest_index = np.apply_along_axis(find_peaks_2d, 0, ddc_pos,
-                                            distance=ddc_pos.shape[0]*0.66)
+# peaks in the bolometer signals. For what concers DDC, is's better to
+# distinguish between positions found with argmax() or find_peaks
+xpr_dlx_nearest_index = np.apply_along_axis(find_peaks_2d, 0, dlx_filt_keep,
+                                            distance=dlx_filt_keep.shape[0]*0.66,
+                                            height=dlx_filt_keep.max()/4)
+xpr_dlx_ni_time = time_dlx_filt
+
+xpr_ddc_nif = np.apply_along_axis(find_peaks_2d_info, 0, ddc_filt_keep,
+                                  distance=ddc_filt_keep.shape[0]*0.66)
+position_type_slicer = (xpr_ddc_nif[:, 1] != 0)
+xpr_ddc_nearest_index = xpr_ddc_nif[position_type_slicer, 0]
+xpr_ddc_nid = xpr_ddc_nif[~position_type_slicer, 0]
+xpr_ddc_ni_time = time_ddc_filt[position_type_slicer]
+
 
 # In order to get a better position we can try to evaluate the weighted average
 # (deterministic) or do a gaussian fit (non deterministic) but, to do so we
-# need our coordinate arrays (dlx/ddc_pos_sights) to have the same dimension of
-# the signal arrays. Therefore, they need to be extended through time:
-dlx_pos_sights_m = np.tile(dlx_pos_sights, (time_dlx_filt.size, 1)).transpose()
-ddc_pos_sights_m = np.tile(ddc_pos_sights, (time_ddc_filt.size, 1)).transpose()
+# need our coordinate arrays (dlx/ddc_sights_keep) to have the same dimension
+# of the signal arrays. Therefore, they need to be extended through time:
+dlx_sights_keep_matrix = np.tile(dlx_sights_keep,
+                                 (xpr_dlx_ni_time.size, 1)).transpose()
+ddc_sights_keep_matrix = np.tile(ddc_sights_keep,
+                                 (xpr_ddc_ni_time.size, 1)).transpose()
 
 # The weighted avarage (or the fitting) will be done on 5 points centered
 # around the maximum. Hence, to prevent any slicing error, we extend the
@@ -448,26 +467,24 @@ ddc_pos_sights_m = np.tile(ddc_pos_sights, (time_ddc_filt.size, 1)).transpose()
 # The extensions are generated in such a manner that they will be ignored both
 # by the weighted average and the gaussian fit DLX extension
 # DLX extension
-dlx_pos_sights_ext = np.zeros((2, time_dlx_filt.size), dtype=int)
-dlx_pos_sights_m = np.append(dlx_pos_sights_ext + dlx_pos_sights_m[0:2] -2,
-                             dlx_pos_sights_m, axis=0)
-dlx_pos_sights_m = np.append(dlx_pos_sights_m, dlx_pos_sights_ext +
-                             dlx_pos_sights_m[-2:] +2, axis=0)
+dlx_sights_keep_matrix = np.concatenate((dlx_sights_keep_matrix[0:2] - 2,
+                                         dlx_sights_keep_matrix,
+                                         dlx_sights_keep_matrix[-2:] + 2))
 
-dlx_pos_ext = np.zeros((2, time_dlx_filt.size))
-dlx_pos = np.append(dlx_pos_ext, dlx_pos, axis=0)
-dlx_pos = np.append(dlx_pos, dlx_pos_ext, axis=0)
+dlx_filt_keep_extension = np.zeros((2, xpr_dlx_ni_time.size))
+dlx_filt_keep = np.concatenate((dlx_filt_keep_extension,
+                                dlx_filt_keep,
+                                dlx_filt_keep_extension))
 
 # DDC extension
-ddc_pos_sights_ext = np.zeros((2, time_ddc_filt.size), dtype=int)
-ddc_pos_sights_m = np.append(ddc_pos_sights_ext + ddc_pos_sights_m[0:2] -2,
-                             ddc_pos_sights_m, axis=0)
-ddc_pos_sights_m = np.append(ddc_pos_sights_m, ddc_pos_sights_ext +
-                             ddc_pos_sights_m[-2:] +2, axis=0)
+ddc_sights_keep_matrix = np.concatenate((ddc_sights_keep_matrix[0:2] - 2,
+                                         ddc_sights_keep_matrix,
+                                         ddc_sights_keep_matrix[-2:] + 2))
 
-ddc_pos_ext = np.zeros((2, time_ddc_filt.size))
-ddc_pos = np.append(ddc_pos_ext, ddc_pos, axis=0)
-ddc_pos = np.append(ddc_pos, ddc_pos_ext, axis=0)
+ddc_filt_keep_extension = np.zeros((2, xpr_ddc_ni_time.size))
+ddc_filt_keep = np.concatenate((ddc_filt_keep_extension,
+                                ddc_filt_keep,
+                                ddc_filt_keep_extension))
 
 # We can finally do some advanced numpy slicing in order to get the desired 5
 # points arrays.
@@ -477,43 +494,51 @@ ddc_pos = np.append(ddc_pos, ddc_pos_ext, axis=0)
 #  xpr_dlx_nearest_index -1 -----> xpr_dlx_nearest_index +1
 #  and so on...)
 # DLX slicing
-dlx_row_slicer = np.array([xpr_dlx_nearest_index,
-                           xpr_dlx_nearest_index +1,
-                           xpr_dlx_nearest_index +2,
-                           xpr_dlx_nearest_index +3,
-                           xpr_dlx_nearest_index +4])
-dlx_column_slicer = np.arange(0, time_dlx_filt.size)
-dlx_pos_sliced = dlx_pos[dlx_row_slicer, dlx_column_slicer]
-dlx_pos_sights_m = dlx_pos_sights_m[dlx_row_slicer, dlx_column_slicer]
+dlx_filt_keep_row_slicer = np.array([xpr_dlx_nearest_index,
+                                     xpr_dlx_nearest_index + 1,
+                                     xpr_dlx_nearest_index + 2,
+                                     xpr_dlx_nearest_index + 3,
+                                     xpr_dlx_nearest_index + 4])
+dlx_filt_keep_column_slicer = np.arange(0, xpr_dlx_ni_time.size)
+dlx_filt_keep = dlx_filt_keep[dlx_filt_keep_row_slicer,
+                              dlx_filt_keep_column_slicer]
+dlx_sights_keep_matrix = dlx_sights_keep_matrix[dlx_filt_keep_row_slicer,
+                                                dlx_filt_keep_column_slicer]
 
 # DDC slicing
-ddc_row_slicer = np.array([xpr_ddc_nearest_index,
-                           xpr_ddc_nearest_index +1,
-                           xpr_ddc_nearest_index +2,
-                           xpr_ddc_nearest_index +3,
-                           xpr_ddc_nearest_index +4])
-ddc_column_slicer = np.arange(0, time_ddc_filt.size)
-ddc_pos_sliced = ddc_pos[ddc_row_slicer, ddc_column_slicer]
-ddc_pos_sights_m = ddc_pos_sights_m[ddc_row_slicer, ddc_column_slicer]
+ddc_filt_keep_row_slicer = np.array([xpr_ddc_nearest_index,
+                                     xpr_ddc_nearest_index + 1,
+                                     xpr_ddc_nearest_index + 2,
+                                     xpr_ddc_nearest_index + 3,
+                                     xpr_ddc_nearest_index + 4])
+ddc_filt_keep_column_slicer = np.arange(0, xpr_ddc_ni_time.size)
+ddc_filt_keep = ddc_filt_keep[ddc_filt_keep_row_slicer,
+                              ddc_filt_keep_column_slicer]
+ddc_sights_keep_matrix = ddc_sights_keep_matrix[ddc_filt_keep_row_slicer,
+                                                ddc_filt_keep_column_slicer]
 
-# Fit a gaussian or re-evaluate the weighted average
+# Fit a gaussian or evaluate the weighted average
 if gaussian:
     print('Using non-deterministic gaussian fit method')
     xpr_dlx = np.apply_along_axis(fit_gauss_time, 0,
-                                  np.append(dlx_pos_sights_m,
-                                            dlx_pos_sliced, axis=0))
+                                  np.concatenate((dlx_sights_keep_matrix,
+                                                  dlx_filt_keep)))
     xpr_ddc = np.apply_along_axis(fit_gauss_time, 0,
-                                  np.append(ddc_pos_sights_m,
-                                            ddc_pos_sliced, axis=0))
+                                  np.concatenate((ddc_sights_keep_matrix,
+                                                  ddc_filt_keep)))
 else:
     print('Using weighted average method')
-    xpr_dlx = np.average(dlx_pos_sights_m, axis=0, weights=dlx_pos_sliced)
-    xpr_ddc = np.average(ddc_pos_sights_m, axis=0, weights=ddc_pos_sliced)
+    xpr_dlx = np.average(dlx_sights_keep_matrix, axis=0, weights=dlx_filt_keep)
+    xpr_ddc = np.average(ddc_sights_keep_matrix, axis=0, weights=ddc_filt_keep)
+
+# Before converting bolometers coordinates to real ones, we need to have
+# xpr_dlx and xpr_ddc in the same shape
+xpr_dlx_ddc_compatible = xpr_dlx[position_type_slicer]
 
 # Convert from bolometers coordinates to real coordinates
 xpr_x, xpr_y = get_real_position(ORGIN_DLX, M_STAR_DLX, M_REF_DLX, OFFSET_DLX,
-                                 xpr_dlx, ORGIN_DDC, M_STAR_DDC, M_REF_DDC,
-                                 OFFSET_DDC, xpr_ddc)
+                                 xpr_dlx_ddc_compatible, ORGIN_DDC, M_STAR_DDC,
+                                 M_REF_DDC, OFFSET_DDC, xpr_ddc)
 
 print('Further processing: done')
 
@@ -524,8 +549,8 @@ if options.xpr_start_time:
     df_data = np.r_['0,2',
                     xpr_x,
                     xpr_y,
-                    time_dlx_filt,
-                    np.where(time_dlx_filt > options.xpr_start_time, 1, 0)]
+                    xpr_ddc_ni_time,
+                    np.where(xpr_ddc_ni_time > options.xpr_start_time, 1, 0)]
     df = pd.DataFrame(df_data, index=['R (m)', 'z (m)', 't (s)', 'is XPR ' +
                                       '(bool)'])
     df.to_csv('XPR_position.csv', header=False)
@@ -541,7 +566,7 @@ colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 px = 1/plt.rcParams['figure.dpi']  # from pixel to inches
 fig = plt.figure(figsize=(1600*px, 1000*px))
 plt.suptitle(f'SHOT #{shot}', fontsize=32, fontweight='bold')
-frames = time_dlx_filt.size
+frames = xpr_ddc_ni_time.size
 
 # Subplots
 ax1 = plt.subplot2grid((5, 3), (0, 0), rowspan=1, colspan=2)
@@ -558,7 +583,7 @@ ax6 = plt.subplot2grid((5, 3), (4, 1), rowspan=1, colspan=1)
 ax1.plot(time_Te_ld, Te_ld[9], label='10th core')
 ax1.plot(time_Te_ld, Te_ld[10], label='11th core')
 ax1.plot(time_Te_ld, Te_ld[11], label='12th core')
-ax1.set_title(f'DTS electron temperature nearby X-point')
+ax1.set_title('DTS electron temperature nearby X-point')
 ax1.set_xlabel('s')
 ax1.set_ylabel(Te_ld.phys_unit)
 ax1.legend()
@@ -567,7 +592,7 @@ ax1.legend()
 ax1_2.plot(time_Ne_ld, Ne_ld[9], label='10th core')
 ax1_2.plot(time_Ne_ld, Ne_ld[10], label='11th core')
 ax1_2.plot(time_Ne_ld, Ne_ld[11], label='12th core')
-ax1_2.set_title(f'DTS electron density nearby X-point')
+ax1_2.set_title('DTS electron density nearby X-point')
 ax1_2.set_xlabel('s')
 ax1_2.set_ylabel(Ne_ld.phys_unit)
 ax1_2.legend()
@@ -576,7 +601,7 @@ ax1_2.legend()
 ax1_3.plot(time_Te_ld, Te_ld[9] * Ne_ld[9], label='10th core')
 ax1_3.plot(time_Te_ld, Te_ld[10] * Ne_ld[10], label='11th core')
 ax1_3.plot(time_Te_ld, Te_ld[11] * Ne_ld[11], label='12th core')
-ax1_3.set_title(f'Evaluated electron pressure nearby X-point')
+ax1_3.set_title('Evaluated electron pressure nearby X-point')
 ax1_3.set_xlabel('s')
 ax1_3.set_ylabel('eV/m^3')
 ax1_3.legend()
@@ -585,7 +610,7 @@ ax1_3.legend()
 # TO ANIMATE BEGIN
 sep_image, = ax2.plot([], [], '-', color=colors[0])
 xpr_image, = ax2.plot([], [], 'o', color=colors[0])
-r_sep, z_sep = sf.rho2rz(equ, 1, t_in=time_dlx_filt, coord_in='rho_pol')
+r_sep, z_sep = sf.rho2rz(equ, 1, t_in=xpr_ddc_ni_time, coord_in='rho_pol')
 # TO ANIMATE END
 # Bolometers drawing
 dlx_start_R = dlx_par['R_Blende'][dlx_sights - 1]
@@ -606,7 +631,7 @@ for i in range(0, ddc_start_R.size):
 for gc in gc_d.values():
     ax2.plot(gc.r, gc.z, '-', color=colors[1])
 # Settings
-ax2.set_title(f'X-point radiator position')
+ax2.set_title('X-point radiator position')
 ax2.set_xlabel('R')
 ax2.set_ylabel('z')
 ax2.set_xlim(1.1, 1.8)
@@ -616,7 +641,7 @@ ax2.set_ylim(-1.3, -0.6)
 cont_1 = ax3.contourf(time_dlx_filt, dlx_sights, dlx_filt, options.depth,
                       cmap='inferno')
 ax3.plot(time_dlx_filt, xpr_dlx, color=colors[1])
-ax3.set_title(f'DLX detected radiation')
+ax3.set_title('DLX detected radiation')
 ax3.set_xlabel('s')
 ax3.set_ylabel('sight')
 fig.colorbar(cont_1, ax=ax3)
@@ -624,8 +649,8 @@ fig.colorbar(cont_1, ax=ax3)
 # DDC subplot
 cont_2 = ax4.contourf(time_ddc_filt, ddc_sights, ddc_filt, options.depth,
                       cmap='inferno')
-ax4.plot(time_ddc_filt, xpr_ddc, color=colors[1])
-ax4.set_title(f'DDC detected radiation')
+ax4.plot(xpr_ddc_ni_time, xpr_ddc, color=colors[1])
+ax4.set_title('DDC detected radiation')
 ax4.set_xlabel('s')
 ax4.set_ylabel('sight')
 fig.colorbar(cont_2, ax=ax4)
@@ -635,7 +660,7 @@ fig.colorbar(cont_2, ax=ax4)
 dlx_image, = ax5.plot([], [])
 dlx_peak_image = ax5.axvline(color=colors[0])
 # TO ANIMATE END
-ax5.set_title(f'DLX signal evolution')
+ax5.set_title('DLX signal evolution')
 ax5.set_xlabel('sight')
 ax5.set_ylabel('W $m^{-2}$')
 ax5.set_xlim(dlx_sights[0]-0.5, dlx_sights[-1]+0.5)
@@ -646,7 +671,7 @@ ax5.set_ylim(dlx_filt.min(), dlx_filt.max())
 ddc_image, = ax6.plot([], [])
 ddc_peak_image = ax6.axvline(color=colors[0])
 # TO ANIMATE END
-ax6.set_title(f'DDC signal evolution')
+ax6.set_title('DDC signal evolution')
 ax6.set_xlabel('sight')
 ax6.set_ylabel('W $m^{-2}$')
 ax6.set_xlim(ddc_sights[0]-0.5, ddc_sights[-1]+0.5)
@@ -662,14 +687,16 @@ axtext.set_facecolor('white')
 axtext.get_xaxis().set_visible(False)
 axtext.get_yaxis().set_visible(False)
 
+dlx_filt_ani = dlx_filt[..., position_type_slicer]
+ddc_filt_ani = ddc_filt[..., position_type_slicer]
 def update_ani(frame):
     sep_image.set_data(r_sep[frame][0], z_sep[frame][0])
     xpr_image.set_data(xpr_x[..., frame], xpr_y[..., frame])
-    dlx_image.set_data(dlx_sights, dlx_filt[..., frame])
-    dlx_peak_image.set_xdata(xpr_dlx[frame])
-    ddc_image.set_data(ddc_sights, ddc_filt[..., frame])
+    dlx_image.set_data(dlx_sights, dlx_filt_ani[..., frame])
+    dlx_peak_image.set_xdata(xpr_dlx_ddc_compatible[frame])
+    ddc_image.set_data(ddc_sights, ddc_filt_ani[..., frame])
     ddc_peak_image.set_xdata(xpr_ddc[frame])
-    timestamp.set_text(f'Time:  {time_dlx_filt[frame]:.3f} s')
+    timestamp.set_text(f'Time:  {xpr_ddc_ni_time[frame]:.3f} s')
     return sep_image, xpr_image, dlx_image, dlx_peak_image, ddc_image, ddc_peak_image, timestamp
 
 ani = FuncAnimation(fig, update_ani, frames=frames, interval=f_interval,
