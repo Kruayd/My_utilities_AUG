@@ -13,6 +13,7 @@
 import sys
 from optparse import OptionParser, OptionGroup
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 from matplotlib.animation import FuncAnimation
 from matplotlib import style
 import numpy as np
@@ -442,14 +443,11 @@ ddc_filt_keep -= ddc_filt_keep.min(axis=0)
 xpr_dlx_nearest_index = np.apply_along_axis(find_peaks_2d, 0, dlx_filt_keep,
                                             distance=dlx_filt_keep.shape[0]*0.66,
                                             height=dlx_filt_keep.max()/4)
-xpr_dlx_ni_time = time_dlx_filt
 
-xpr_ddc_nif = np.apply_along_axis(find_peaks_2d_info, 0, ddc_filt_keep,
-                                  distance=ddc_filt_keep.shape[0]*0.66)
-position_type_slicer = (xpr_ddc_nif[:, 1] != 0)
-xpr_ddc_nearest_index = xpr_ddc_nif[position_type_slicer, 0]
-xpr_ddc_nid = xpr_ddc_nif[~position_type_slicer, 0]
-xpr_ddc_ni_time = time_ddc_filt[position_type_slicer]
+xpr_ddc_nearest_index, quality_slicer = np.apply_along_axis(find_peaks_2d_info,
+                                                            0, ddc_filt_keep,
+                                                            distance=ddc_filt_keep.shape[0]*0.66)
+quality_slicer = (quality_slicer != 0)
 
 
 # In order to get a better position we can try to evaluate the weighted average
@@ -457,9 +455,9 @@ xpr_ddc_ni_time = time_ddc_filt[position_type_slicer]
 # need our coordinate arrays (dlx/ddc_sights_keep) to have the same dimension
 # of the signal arrays. Therefore, they need to be extended through time:
 dlx_sights_keep_matrix = np.tile(dlx_sights_keep,
-                                 (xpr_dlx_ni_time.size, 1)).transpose()
+                                 (time_dlx_filt.size, 1)).transpose()
 ddc_sights_keep_matrix = np.tile(ddc_sights_keep,
-                                 (xpr_ddc_ni_time.size, 1)).transpose()
+                                 (time_ddc_filt.size, 1)).transpose()
 
 # The weighted avarage (or the fitting) will be done on 5 points centered
 # around the maximum. Hence, to prevent any slicing error, we extend the
@@ -471,7 +469,7 @@ dlx_sights_keep_matrix = np.concatenate((dlx_sights_keep_matrix[0:2] - 2,
                                          dlx_sights_keep_matrix,
                                          dlx_sights_keep_matrix[-2:] + 2))
 
-dlx_filt_keep_extension = np.zeros((2, xpr_dlx_ni_time.size))
+dlx_filt_keep_extension = np.zeros((2, time_dlx_filt.size))
 dlx_filt_keep = np.concatenate((dlx_filt_keep_extension,
                                 dlx_filt_keep,
                                 dlx_filt_keep_extension))
@@ -481,7 +479,7 @@ ddc_sights_keep_matrix = np.concatenate((ddc_sights_keep_matrix[0:2] - 2,
                                          ddc_sights_keep_matrix,
                                          ddc_sights_keep_matrix[-2:] + 2))
 
-ddc_filt_keep_extension = np.zeros((2, xpr_ddc_ni_time.size))
+ddc_filt_keep_extension = np.zeros((2, time_ddc_filt.size))
 ddc_filt_keep = np.concatenate((ddc_filt_keep_extension,
                                 ddc_filt_keep,
                                 ddc_filt_keep_extension))
@@ -499,7 +497,7 @@ dlx_filt_keep_row_slicer = np.array([xpr_dlx_nearest_index,
                                      xpr_dlx_nearest_index + 2,
                                      xpr_dlx_nearest_index + 3,
                                      xpr_dlx_nearest_index + 4])
-dlx_filt_keep_column_slicer = np.arange(0, xpr_dlx_ni_time.size)
+dlx_filt_keep_column_slicer = np.arange(0, time_dlx_filt.size)
 dlx_filt_keep = dlx_filt_keep[dlx_filt_keep_row_slicer,
                               dlx_filt_keep_column_slicer]
 dlx_sights_keep_matrix = dlx_sights_keep_matrix[dlx_filt_keep_row_slicer,
@@ -511,7 +509,7 @@ ddc_filt_keep_row_slicer = np.array([xpr_ddc_nearest_index,
                                      xpr_ddc_nearest_index + 2,
                                      xpr_ddc_nearest_index + 3,
                                      xpr_ddc_nearest_index + 4])
-ddc_filt_keep_column_slicer = np.arange(0, xpr_ddc_ni_time.size)
+ddc_filt_keep_column_slicer = np.arange(0, time_ddc_filt.size)
 ddc_filt_keep = ddc_filt_keep[ddc_filt_keep_row_slicer,
                               ddc_filt_keep_column_slicer]
 ddc_sights_keep_matrix = ddc_sights_keep_matrix[ddc_filt_keep_row_slicer,
@@ -531,14 +529,10 @@ else:
     xpr_dlx = np.average(dlx_sights_keep_matrix, axis=0, weights=dlx_filt_keep)
     xpr_ddc = np.average(ddc_sights_keep_matrix, axis=0, weights=ddc_filt_keep)
 
-# Before converting bolometers coordinates to real ones, we need to have
-# xpr_dlx and xpr_ddc in the same shape
-xpr_dlx_ddc_compatible = xpr_dlx[position_type_slicer]
-
 # Convert from bolometers coordinates to real coordinates
 xpr_x, xpr_y = get_real_position(ORGIN_DLX, M_STAR_DLX, M_REF_DLX, OFFSET_DLX,
-                                 xpr_dlx_ddc_compatible, ORGIN_DDC, M_STAR_DDC,
-                                 M_REF_DDC, OFFSET_DDC, xpr_ddc)
+                                 xpr_dlx, ORGIN_DDC, M_STAR_DDC, M_REF_DDC,
+                                 OFFSET_DDC, xpr_ddc)
 
 print('Further processing: done')
 
@@ -549,10 +543,11 @@ if options.xpr_start_time:
     df_data = np.r_['0,2',
                     xpr_x,
                     xpr_y,
-                    xpr_ddc_ni_time,
-                    np.where(xpr_ddc_ni_time > options.xpr_start_time, 1, 0)]
+                    time_dlx_filt,
+                    np.where(time_dlx_filt > options.xpr_start_time, 1, 0),
+                    quality_slicer]
     df = pd.DataFrame(df_data, index=['R (m)', 'z (m)', 't (s)', 'is XPR ' +
-                                      '(bool)'])
+                                      '(bool)', 'good detection (bool)'])
     df.to_csv('XPR_position.csv', header=False)
 
 
@@ -566,7 +561,7 @@ colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 px = 1/plt.rcParams['figure.dpi']  # from pixel to inches
 fig = plt.figure(figsize=(1600*px, 1000*px))
 plt.suptitle(f'SHOT #{shot}', fontsize=32, fontweight='bold')
-frames = xpr_ddc_ni_time.size
+frames = time_dlx_filt.size
 
 # Subplots
 ax1 = plt.subplot2grid((5, 3), (0, 0), rowspan=1, colspan=2)
@@ -610,7 +605,7 @@ ax1_3.legend()
 # TO ANIMATE BEGIN
 sep_image, = ax2.plot([], [], '-', color=colors[0])
 xpr_image, = ax2.plot([], [], 'o', color=colors[0])
-r_sep, z_sep = sf.rho2rz(equ, 1, t_in=xpr_ddc_ni_time, coord_in='rho_pol')
+r_sep, z_sep = sf.rho2rz(equ, 1, t_in=time_dlx_filt, coord_in='rho_pol')
 # TO ANIMATE END
 # Bolometers drawing
 dlx_start_R = dlx_par['R_Blende'][dlx_sights - 1]
@@ -649,7 +644,13 @@ fig.colorbar(cont_1, ax=ax3)
 # DDC subplot
 cont_2 = ax4.contourf(time_ddc_filt, ddc_sights, ddc_filt, options.depth,
                       cmap='inferno')
-ax4.plot(xpr_ddc_ni_time, xpr_ddc, color=colors[1])
+c = [colors[1] if value else colors[3] for value in quality_slicer]
+lines = [((x0,y0), (x1,y1)) for x0, y0, x1, y1 in zip(time_ddc_filt[:-1],
+                                                      xpr_ddc[:-1],
+                                                      time_ddc_filt[1:],
+                                                      xpr_ddc[1:])]
+colored_lines = LineCollection(lines, colors=c)
+ax4.add_collection(colored_lines)
 ax4.set_title('DDC detected radiation')
 ax4.set_xlabel('s')
 ax4.set_ylabel('sight')
@@ -687,16 +688,16 @@ axtext.set_facecolor('white')
 axtext.get_xaxis().set_visible(False)
 axtext.get_yaxis().set_visible(False)
 
-dlx_filt_ani = dlx_filt[..., position_type_slicer]
-ddc_filt_ani = ddc_filt[..., position_type_slicer]
 def update_ani(frame):
     sep_image.set_data(r_sep[frame][0], z_sep[frame][0])
     xpr_image.set_data(xpr_x[..., frame], xpr_y[..., frame])
-    dlx_image.set_data(dlx_sights, dlx_filt_ani[..., frame])
-    dlx_peak_image.set_xdata(xpr_dlx_ddc_compatible[frame])
-    ddc_image.set_data(ddc_sights, ddc_filt_ani[..., frame])
+    xpr_image.set_color(colors[0] * quality_slicer[frame] +
+                        colors[3] * ~quality_slicer[frame])
+    dlx_image.set_data(dlx_sights, dlx_filt[..., frame])
+    dlx_peak_image.set_xdata(xpr_dlx[frame])
+    ddc_image.set_data(ddc_sights, ddc_filt[..., frame])
     ddc_peak_image.set_xdata(xpr_ddc[frame])
-    timestamp.set_text(f'Time:  {xpr_ddc_ni_time[frame]:.3f} s')
+    timestamp.set_text(f'Time:  {time_dlx_filt[frame]:.3f} s')
     return sep_image, xpr_image, dlx_image, dlx_peak_image, ddc_image, ddc_peak_image, timestamp
 
 ani = FuncAnimation(fig, update_ani, frames=frames, interval=f_interval,
