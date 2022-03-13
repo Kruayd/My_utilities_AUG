@@ -11,6 +11,7 @@
 # IMPORTS
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import sys
+import warnings
 from optparse import OptionParser, OptionGroup
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
@@ -284,7 +285,11 @@ if dtn.status:
     Ne_ld = Ne_ld.transpose()
     time_Ne_ld = dtn.gettimebase('Ne_ld')
 else:
-    sys.exit('Error while loading DTN')
+    warnings.warn('Error while loading DTN')
+    time_Te_ld = np.arange(0, 8, 0.001)
+    Te_ld = np.zeros((26, time_Te_ld.size))
+    time_Ne_ld = np.arange(0, 8, 0.001)
+    Ne_ld = np.zeros((26, time_Te_ld.size))
 
 # Calibration parameters set (dictionary)
 if blc.status:
@@ -580,7 +585,7 @@ ax1.plot(time_Te_ld, Te_ld[10], label='11th core')
 ax1.plot(time_Te_ld, Te_ld[11], label='12th core')
 ax1.set_title('DTS electron temperature nearby X-point')
 ax1.set_xlabel('s')
-ax1.set_ylabel(Te_ld.phys_unit)
+ax1.set_ylabel('eV')
 ax1.legend()
 
 # Ne_ld subplot
@@ -589,7 +594,7 @@ ax1_2.plot(time_Ne_ld, Ne_ld[10], label='11th core')
 ax1_2.plot(time_Ne_ld, Ne_ld[11], label='12th core')
 ax1_2.set_title('DTS electron density nearby X-point')
 ax1_2.set_xlabel('s')
-ax1_2.set_ylabel(Ne_ld.phys_unit)
+ax1_2.set_ylabel('1/m^3')
 ax1_2.legend()
 
 # Ne_ld subplot
@@ -603,8 +608,8 @@ ax1_3.legend()
 
 # X-point radiator position subplot
 # TO ANIMATE BEGIN
-sep_image, = ax2.plot([], [], '-', color=colors[0])
-xpr_image, = ax2.plot([], [], 'o', color=colors[0])
+sep_image, = ax2.plot([], [], '-', color=colors[1])
+xpr_image, = ax2.plot([], [], 'o', color=colors[1])
 r_sep, z_sep = sf.rho2rz(equ, 1, t_in=time_dlx_filt, coord_in='rho_pol')
 # TO ANIMATE END
 # Bolometers drawing
@@ -618,13 +623,13 @@ ddc_end_R = ddc_par['R_end'][ddc_sights - 1]
 ddc_end_Z = ddc_par['z_end'][ddc_sights - 1]
 for i in range(0, dlx_start_R.size):
     ax2.plot([dlx_start_R[i], dlx_end_R[i]], [dlx_start_Z[i], dlx_end_Z[i]],
-             '-', color=colors[1])
+             '-', color=colors[3])
 for i in range(0, ddc_start_R.size):
     ax2.plot([ddc_start_R[i], ddc_end_R[i]], [ddc_start_Z[i], ddc_end_Z[i]],
-             '-', color=colors[1])
+             '-', color=colors[3])
 # Vessel drawing
 for gc in gc_d.values():
-    ax2.plot(gc.r, gc.z, '-', color=colors[1])
+    ax2.plot(gc.r, gc.z, '-', color=colors[3])
 # Settings
 ax2.set_title('X-point radiator position')
 ax2.set_xlabel('R')
@@ -639,12 +644,13 @@ ax3.plot(time_dlx_filt, xpr_dlx, color=colors[1])
 ax3.set_title('DLX detected radiation')
 ax3.set_xlabel('s')
 ax3.set_ylabel('sight')
+ax3.set_ylim(dlx_sights.min(), dlx_sights.max())
 fig.colorbar(cont_1, ax=ax3)
 
 # DDC subplot
 cont_2 = ax4.contourf(time_ddc_filt, ddc_sights, ddc_filt, options.depth,
                       cmap='inferno')
-c = [colors[1] if value else colors[3] for value in quality_slicer]
+c = [colors[1] if value else colors[0] for value in quality_slicer]
 lines = [((x0,y0), (x1,y1)) for x0, y0, x1, y1 in zip(time_ddc_filt[:-1],
                                                       xpr_ddc[:-1],
                                                       time_ddc_filt[1:],
@@ -654,6 +660,7 @@ ax4.add_collection(colored_lines)
 ax4.set_title('DDC detected radiation')
 ax4.set_xlabel('s')
 ax4.set_ylabel('sight')
+ax4.set_ylim(ddc_sights.min(), ddc_sights.max())
 fig.colorbar(cont_2, ax=ax4)
 
 # Evolution of DLX signal subplot
@@ -691,8 +698,8 @@ axtext.get_yaxis().set_visible(False)
 def update_ani(frame):
     sep_image.set_data(r_sep[frame][0], z_sep[frame][0])
     xpr_image.set_data(xpr_x[..., frame], xpr_y[..., frame])
-    xpr_image.set_color(colors[0] * quality_slicer[frame] +
-                        colors[3] * ~quality_slicer[frame])
+    xpr_image.set_color(colors[1] * quality_slicer[frame] +
+                        colors[0] * ~quality_slicer[frame])
     dlx_image.set_data(dlx_sights, dlx_filt[..., frame])
     dlx_peak_image.set_xdata(xpr_dlx[frame])
     ddc_image.set_data(ddc_sights, ddc_filt[..., frame])
