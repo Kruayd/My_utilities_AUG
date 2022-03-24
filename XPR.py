@@ -185,12 +185,12 @@ parser.add_option('-w', '--window',
                        'filter is also set to 1/3 of the given window ' +
                        'length. In this way a decimation is also applied ' +
                        'together with the filter (default is 50)')
-parser.add_option('-e', '--equilibrium_diagnostic',
-                  metavar='EQUILIBRIUM_DIAGNOSTIC',
+parser.add_option('-m', '--magnetic_equilibrium_diagnostic',
+                  metavar='MAGNETIC EQUILIBRIUM_DIAGNOSTIC',
                   action='store', type='str', dest='equ_diag', default='EQH',
                   help='Select which diagnostic is used for magnetic '+
                        'reconstruction (FPP, EQI or EQH, default is EQH)')
-parser.add_option('-t', '--end_time',
+parser.add_option('-e', '--end_time',
                   metavar='END_time',
                   action='store', type='float', dest='end_time', default=12.,
                   help='Select the upper boundary of time interval to plot')
@@ -213,13 +213,21 @@ parser.add_option('-g', '--gaussian_fit',
                   help='Use gaussian fit from scipy in order to get the ' +
                        'non-discrete X-point radiator position ' +
                        '(non-deterministic)')
-parser.add_option('-p', '--print_to_csv',
-                  metavar='XPR_START_TIME',
-                  action='store', type='float', dest='xpr_start_time',
-                  help='Output a XPR_position.csv file containing data ' +
-                       'about the x-point radiator position, the time base ' +
-                       'and a variable that tells whether or not the xpr is ' +
-                       'already established')
+parser.add_option('-o', '--out_to_csv',
+                  action='store_true', dest='output_file', default=False,
+                  help='Output a csv file containing data about the x-point ' +
+                       'radiator position, the time base, a variable that ' +
+                       'tells whether or not an xpr is there and, finally, ' +
+                       'another variable about which peak detection method ' +
+                       'was used.\nIf the gaussian fit was used, ' +
+                       '"_gaussian" is prepended before the file extension\n' +
+                       'Check also the -t and the -F options')
+parser.add_option('-F', '--file',
+                  metavar='FILE_NAME',
+                  action='store', type='str', dest='file_name',
+                  default='XPR_postion.csv',
+                  help='Set output file path (default is XPR_position.csv)')
+# XPR_position.csv
 mandatory = OptionGroup(parser,
                         'Mandatory args',
                         'These args are mandatory!!!')
@@ -329,7 +337,7 @@ print('Querying: done')
 
 
 
-# SIGNAL PROCESSING
+# SIGNAL PRE-PROCESSING
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # DLX bolometer
 # Select only active line of sights
@@ -340,9 +348,6 @@ dlx = dlx[dlx_sights - 1]
 # Remove offsets
 dlx = (dlx.transpose() - np.mean(dlx[:, :10000], 1)).transpose()
 
-# Apply median median_filter
-time_dlx_filt, dlx_filt = median_filter(F_S_BOL, time_window, time_dlx, dlx)
-
 # DDC bolometer
 # Select only active line of sights
 ddc_sights = np.arange(17, 33) * ddc_par['active'][16:32]
@@ -352,26 +357,23 @@ ddc = ddc[ddc_sights - 17]
 # Remove offsets
 ddc = (ddc.transpose() - np.mean(ddc[:, :10000], 1)).transpose()
 
-# Apply median median_filter
-time_ddc_filt, ddc_filt = median_filter(F_S_BOL, time_window, time_ddc, ddc)
-
-print('Processing: done')
+print('Pre-processing: done')
 
 
 
 # UNIVERSAL TIME SELECTION
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Get maximum common time interval boundaries
-start = max(time_Te_ld[0], time_Ne_ld[0], time_dlx_filt[0], time_ddc_filt[0])
-end = min(end_time, time_Te_ld[-1], time_Ne_ld[-1], time_dlx_filt[-1], time_ddc_filt[-1])
+start = max(time_Te_ld[0], time_Ne_ld[0], time_dlx[0], time_ddc[0])
+end = min(end_time, time_Te_ld[-1], time_Ne_ld[-1], time_dlx[-1], time_ddc[-1])
 
-# Get indexes of boundaries for ddc_filt
-start_index_ddc = find_nearest_index(time_ddc_filt, start)
-end_index_ddc = find_nearest_index(time_ddc_filt, end)
+# Get indexes of boundaries for ddc
+start_index_ddc = find_nearest_index(time_ddc, start)
+end_index_ddc = find_nearest_index(time_ddc, end)
 
-# Get indexes of boundaries for dlx_filt
-start_index_dlx = find_nearest_index(time_dlx_filt, start)
-end_index_dlx = find_nearest_index(time_dlx_filt, end)
+# Get indexes of boundaries for dlx
+start_index_dlx = find_nearest_index(time_dlx, start)
+end_index_dlx = find_nearest_index(time_dlx, end)
 
 # Get indexes of boundaries for Te_ld
 start_index_Te_ld = find_nearest_index(time_Te_ld, start)
@@ -381,13 +383,13 @@ end_index_Te_ld = find_nearest_index(time_Te_ld, end)
 start_index_Ne_ld = find_nearest_index(time_Ne_ld, start)
 end_index_Ne_ld = find_nearest_index(time_Ne_ld, end)
 
-# Slice ddc_filt and relative time
-ddc_filt = ddc_filt[:, start_index_ddc:end_index_ddc+1]
-time_ddc_filt = time_ddc_filt[start_index_ddc:end_index_ddc+1]
+# Slice ddc and relative time
+ddc = ddc[:, start_index_ddc:end_index_ddc+1]
+time_ddc = time_ddc[start_index_ddc:end_index_ddc+1]
 
-# Slice dlx_filt and relative time
-dlx_filt = dlx_filt[:, start_index_dlx:end_index_dlx+1]
-time_dlx_filt = time_dlx_filt[start_index_dlx:end_index_dlx+1]
+# Slice dlx and relative time
+dlx = dlx[:, start_index_dlx:end_index_dlx+1]
+time_dlx = time_dlx[start_index_dlx:end_index_dlx+1]
 
 # Slice Te_ld and relative time
 Te_ld = Te_ld[:, start_index_Te_ld:end_index_Te_ld+1]
@@ -396,6 +398,18 @@ time_Te_ld = time_Te_ld[start_index_Te_ld:end_index_Te_ld+1]
 # Slice Ne_ld and relative time
 Ne_ld = Ne_ld[:, start_index_Ne_ld:end_index_Ne_ld+1]
 time_Ne_ld = time_Ne_ld[start_index_Ne_ld:end_index_Ne_ld+1]
+
+print('Time selection: done')
+
+
+
+# SLICING AND PROCESSING FOR DIFFERENT OPERATIONS
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Apply median median_filter to dlx
+time_dlx_filt, dlx_filt = median_filter(F_S_BOL, time_window, time_dlx, dlx)
+
+# Apply median median_filter to ddc
+time_ddc_filt, ddc_filt = median_filter(F_S_BOL, time_window, time_ddc, ddc)
 
 # Sometimes time_dlx_filt and time_ddc_filt can be different in length, leading
 # to errors in subsequent computations. It's better to re-slice them in order
@@ -406,12 +420,6 @@ time_dlx_filt = time_dlx_filt[:length_index]
 ddc_filt = ddc_filt[:, :length_index]
 time_ddc_filt = time_ddc_filt[:length_index]
 
-print('Time selection: done')
-
-
-
-# SLICING AND PROCESSING FOR DIFFERENT OPERATIONS
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Remove first line of sight from DLX bolometer (usually it is just  a
 # reflection of the actual radiator) and bring everityhing above 0 (necessary
 # for weighted average)
@@ -449,10 +457,10 @@ xpr_dlx_nearest_index = np.apply_along_axis(find_peaks_2d, 0, dlx_filt_keep,
                                             distance=dlx_filt_keep.shape[0]*0.66,
                                             height=dlx_filt_keep.max()/4)
 
-xpr_ddc_nearest_index, quality_slicer = np.apply_along_axis(find_peaks_2d_info,
-                                                            0, ddc_filt_keep,
-                                                            distance=ddc_filt_keep.shape[0]*0.66)
-quality_slicer = (quality_slicer != 0)
+xpr_ddc_nearest_index, method_slicer = np.apply_along_axis(find_peaks_2d_info,
+                                                           0, ddc_filt_keep,
+                                                           distance=ddc_filt_keep.shape[0]*0.66)
+method_slicer = (method_slicer != 0)
 
 
 # In order to get a better position we can try to evaluate the weighted average
@@ -544,17 +552,23 @@ print('Further processing: done')
 
 
 # PRINTING FILE (OPTIONAL)
-if options.xpr_start_time:
+if options.output_file:
+    file_name = options.file_name.split('.')
+    if file_name[-1] != 'csv':
+        file_name.append('csv')
+    if gaussian:
+        file_name[-2] += '_gaussian'
+    file_name = '.'.join(file_name)
     df_data = np.r_['0,2',
                     xpr_x,
                     xpr_y,
                     time_dlx_filt,
                     np.where(time_dlx_filt > options.xpr_start_time, 1, 0),
-                    quality_slicer]
+                    method_slicer]
     df = pd.DataFrame(df_data, index=['R (m)', 'z (m)', 't (s)', 'is XPR ' +
-                                      '(bool)', 'good detection (bool)'])
-    df.to_csv('XPR_position.csv', header=False)
-
+                                      '(bool)', 'detection with ' +
+                                      'scipy.signal.find_peaks (bool)'])
+    df.to_csv(file_name, header=False)
 
 
 
@@ -650,7 +664,11 @@ fig.colorbar(cont_1, ax=ax3)
 # DDC subplot
 cont_2 = ax4.contourf(time_ddc_filt, ddc_sights, ddc_filt, options.depth,
                       cmap='inferno')
-c = [colors[1] if value else colors[0] for value in quality_slicer]
+# We want the band points to be enveloped in red lines but, since the color of
+# a line in LineCollection is determined only by the first point, we need to
+# turn also good points preceding a bad point to bad
+method_slicer[:-1] *= method_slicer[1:]
+c = [colors[1] if value else colors[0] for value in method_slicer]
 lines = [((x0,y0), (x1,y1)) for x0, y0, x1, y1 in zip(time_ddc_filt[:-1],
                                                       xpr_ddc[:-1],
                                                       time_ddc_filt[1:],
@@ -698,8 +716,8 @@ axtext.get_yaxis().set_visible(False)
 def update_ani(frame):
     sep_image.set_data(r_sep[frame][0], z_sep[frame][0])
     xpr_image.set_data(xpr_x[..., frame], xpr_y[..., frame])
-    xpr_image.set_color(colors[1] * quality_slicer[frame] +
-                        colors[0] * ~quality_slicer[frame])
+    xpr_image.set_color(colors[1] * method_slicer[frame] +
+                        colors[0] * ~method_slicer[frame])
     dlx_image.set_data(dlx_sights, dlx_filt[..., frame])
     dlx_peak_image.set_xdata(xpr_dlx[frame])
     ddc_image.set_data(ddc_sights, ddc_filt[..., frame])

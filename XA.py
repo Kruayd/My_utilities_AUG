@@ -15,6 +15,7 @@ from optparse import OptionParser, OptionGroup
 import matplotlib.pyplot as plt
 from matplotlib import style
 import numpy as np
+import scipy.ndimage as ndm
 import aug_sfutils as sf
 
 
@@ -164,9 +165,9 @@ print('Querying: done')
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Get maximum common time interval boundaries
 start = max(time_q_95[0], time_magax[0], time_xp[0], time_n_0[0], time_n_u[0],
-            time_T_u[0])
+            time_T_u[0], 2)
 end = min(time_q_95[-1], time_magax[-1], time_xp[-1], time_n_0[-1],
-          time_n_u[-1], time_T_u[-1])
+          time_n_u[-1], time_T_u[-1], 8)
 
 # Get indexes of boundaries for q95
 start_index_q_95 = find_nearest_index(time_q_95, start)
@@ -224,35 +225,71 @@ area_T_u = area_T_u[:, start_index_T_u:end_index_T_u+1]
 time_base = shortest_array([time_q_95, time_magax, time_xp, time_n_0, time_n_u,
                             time_T_u])
 
+# Since we need to downsample the longest array to the same size of the
+# shortest array we must before apply a gaussian blur in order to avoid
+# aliasing. The sigma of the blur is chosen in such a way that the distance
+# between 2 longest_array elements corresponding to adjacent shortest_array
+# elements must be equal to 3 times sigma.
+#
+# e.g.
+# time_shortest_array:      [0.0]               [0.4]               [0.8]
+# time_longest_array:       [0.0][0.1][0.2][0.3][0.4][0.5][0.6][0.7][0.8][0.9]
+# time_shortest_array.size: 3
+# time_longest_array.size:  10
+# In this case 3 times sigma is equal to 4, which is the distance between 4th
+# and 0th elements of longest_array (or, equivalently, time_longest array), but
+# can be evaluated in a more general way by the following expression:
+# 3 * sigma = np.ceil(time_longest_array.size / time_shortest_array.size)
+# therefore we have:
+# sigma = np.ceil(time_longest_array.size / time_shortest_array.size) / 3
+# In the case in which time_longest_array.size is equal to
+# time_shortest_array.size, a sigma of 0.33 prevent the Gaussian filter from
+# blurring the signal (since all the effects of the filter are dampened already
+# at the immediately preceding and succeeding points
+
 # Resample q95
+sigma_q_95 = np.ceil(time_q_95.size / time_base.size) / 3
+q_95 = ndm.gaussian_filter(q_95, sigma=sigma_q_95)
 index_q_95, _ = find_nearest_multiple_index(time_q_95, time_base)
 time_q_95 = time_q_95[index_q_95]
 q_95 = q_95[index_q_95]
 
 # Resample magnetic axis
+sigma_magax = np.ceil(time_magax.size / time_base.size) / 3
+r_magax = ndm.gaussian_filter(r_magax, sigma=sigma_magax)
+z_magax = ndm.gaussian_filter(z_magax, sigma=sigma_magax)
 index_magax, _ = find_nearest_multiple_index(time_magax, time_base)
 time_magax = time_magax[index_magax]
 r_magax = r_magax[index_magax]
 z_magax = z_magax[index_magax]
 
 # Resample X-point
+sigma_xp = np.ceil(time_xp.size / time_base.size) / 3
+r_xp = ndm.gaussian_filter(r_xp, sigma=sigma_xp)
+z_xp = ndm.gaussian_filter(z_xp, sigma=sigma_xp)
 index_xp, _ = find_nearest_multiple_index(time_xp, time_base)
 time_xp = time_xp[index_xp]
 r_xp = r_xp[index_xp]
 z_xp = z_xp[index_xp]
 
 # Resample neutral density
+sigma_n_0 = np.ceil(time_n_0.size / time_base.size) / 3
+n_0 = ndm.gaussian_filter(n_0, sigma=sigma_n_0)
 index_n_0, _ = find_nearest_multiple_index(time_n_0, time_base)
 time_n_0 = time_n_0[index_n_0]
 n_0 = n_0[index_n_0]
 
 # Resample upstream density
+sigma_n_u = (0, np.ceil(time_n_u.size / time_base.size) / 3)
+n_u_profile = ndm.gaussian_filter(n_u_profile, sigma=sigma_n_u)
 index_n_u, _ = find_nearest_multiple_index(time_n_u, time_base)
 time_n_u = time_n_u[index_n_u]
 n_u_profile = n_u_profile[:, index_n_u]
 area_n_u = area_n_u[:, index_n_u]
 
 # Resample upstream temperature
+sigma_T_u = (0, np.ceil(time_T_u.size / time_base.size) / 3)
+T_u_profile = ndm.gaussian_filter(T_u_profile, sigma=sigma_T_u)
 index_T_u, _ = find_nearest_multiple_index(time_T_u, time_base)
 time_T_u = time_T_u[index_T_u]
 T_u_profile = T_u_profile[:, index_T_u]
@@ -397,7 +434,7 @@ ax6.set_ylabel('Upstream density ($m^{-3}$)', color=colors[1])
 ax7.plot(time_T_u, T_u, color=colors[4])
 ax7.set_title(f'Upstream temperature')
 ax7.set_xlabel('time (s)')
-ax7.set_ylabel(T_u_profile.phys_unit)
+ax7.set_ylabel('eV')
 
 # X_A subplot
 ax8.plot(time_base, X_A, color=colors[2])
