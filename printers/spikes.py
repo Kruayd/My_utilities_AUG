@@ -8,9 +8,9 @@ WID = 5.512
 HIG = WID / 1.618
 DEPTH = 50
 X_LABEL = r'Time (s)'
-Y_LABEL = r'flux expansion between the upstream and the X-point'
+Y_LABEL = r'flux expansion'
 
-SHOT = 41158
+SHOT = 41137
 FPG_DIAG = 'GQH'
 MAG_EQU_DIAG = 'EQH'
 
