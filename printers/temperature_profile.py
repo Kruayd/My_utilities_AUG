@@ -9,7 +9,7 @@ HIG = WID / 1.618
 X_LABEL = r'$\rho_{pol}$'
 Y_LABEL = r'Electron temperature (ev)'
 
-SHOT = 41137
+SHOT = 40365
 
 
 ida = sf.SFREAD(SHOT, 'IDA')
@@ -38,8 +38,9 @@ plt.rc('legend', fontsize=10)
 
 
 # DLX subplot
-plt.xlim([0.89, 1.11])
-plt.title(f't={time_ida} s, Shot #{SHOT}', loc='right')
+plt.xlim([0.96, 1.04])
+plt.ylim([-0.04*600, 600])
+plt.title(f't={time_ida:.3f} s, Shot #{SHOT}', loc='right')
 plt.plot(area_ida, T_u, marker='+')
 plt.xlabel(X_LABEL)
 plt.ylabel(Y_LABEL)
