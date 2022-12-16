@@ -13,7 +13,7 @@ MAN_CSV_CAL = './csvs/IOC_calibrator.csv'
 
 class SFIOCF01():
 
-    def __init__(self, shot: int, sensitivity=MAN_N_CAL, interpolate=False):
+    def __init__(self, shot: int, sensitivity=MAN_N_CAL):
         self.sfobject = sf.SFREAD(shot, 'IOC')
 
         self.status = self.sfobject.status
@@ -28,16 +28,6 @@ class SFIOCF01():
             self.f_lower = self.f_lower[..., 0].astype(np.double)
         else:
             sys.exit('Error while loading IOC')
-
-        if interpolate:
-            iob = sf.SFREAD(shot, 'IOB')
-            if iob.status:
-                f_iob = iob.getobject('F01', cal=True).astype(np.double)
-                time_iob = iob.gettimebase('F01').astype(np.double)
-            else:
-                sys.exit('Error while loading IOB')
-
-            self.flux = self.interpolate_nan(time_iob, f_iob, self.flux)
 
         df_cal = pd.read_csv(MAN_CSV_CAL, index_col=0).loc[shot]
         cal_start = np.atleast_1d(df_cal['start'])
@@ -81,45 +71,6 @@ class SFIOCF01():
 
     def getparset(self, parameter: str):
         return self.sfobject.getparset(parameter)
-
-    def interpolate_nan(self, reference_time, reference, signal):
-        time_index, _ = sgpr.find_nearest_multiple_index(reference_time,
-                                                      self.time)
-        print(np.all(np.diff(time_index) >= 0))
-        reference_time = reference_time[time_index]
-        reference = reference[time_index]
-
-        # IOC = a * IOB + c
-        # we want to find a and c
-
-        unc_sig = np.r_['1,2,0', 
-
-
-
-        a_nan = (np.diff(signal) / np.diff(reference))
-        a_nan[np.abs(a_nan) == np.inf] = np.nan
-        for i in range(100):
-            exclude = (np.abs(a_nan - a_nan.mean()) > 2*a_nan.std())
-            a_nan[exclude] = np.nan
-        c_nan = ((signal[1:] + signal[:-1]) / 2 -
-                 a_nan * (reference[1:] + reference[:-1]) / 2)
-        print(c_nan)
-        time_int = (self.time[1:] + self.time[:-1])/2
-
-        weights = ~np.isnan(a_nan)
-        a_nan[~weights] = 0
-        c_nan[~weights] = 0
-
-        a_int = inter.UnivariateSpline(time_int, a_nan, w=weights, s=1e13)
-        c_int = inter.UnivariateSpline(time_int, c_nan, w=weights, s=1e60)
-
-        a_coeff = a_int(self.time)
-        c_coeff = c_int(self.time)
-        print(a_coeff)
-        print(c_coeff)
-        self.test = a_coeff
-
-        return signal
 
     def spline_calibrate(self, cal_bg, cal_time, cal_sample, cal_sample_upper,
                          cal_sample_lower, sensitivity):
