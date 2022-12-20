@@ -5,7 +5,7 @@ import aug_sfutils as sf
 import matplotlib.pyplot as plt
 
 import sig_proc as sgpr
-import manual_calibrators as manc
+import calibrators as cal
 
 
 WID = 5.512
@@ -25,9 +25,9 @@ shot_end = df_shot_time['end']
 
 ioc_raw = sf.SFREAD(SHOT, 'IOC')
 
-ioc_low = manc.SFIOCF01(SHOT, sensitivity=3.)
-ioc = manc.SFIOCF01(SHOT)
-ioc_upp = manc.SFIOCF01(SHOT, sensitivity=2.)
+ioc_low = cal.SFIOCF01(SHOT, sensitivity=3.)
+ioc = cal.SFIOCF01(SHOT)
+ioc_upp = cal.SFIOCF01(SHOT, sensitivity=2.)
 
 
 if ioc_raw.status:

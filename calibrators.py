@@ -7,7 +7,7 @@ import scipy.interpolate as inter
 import sig_proc as sgpr
 
 
-MAN_N_CAL = 2.5
+MAN_N_CAL = 2.52
 MAN_CSV_CAL = './csvs/IOC_calibrator.csv'
 
 
@@ -85,7 +85,6 @@ class SFIOCF01():
         self.bg_fit = background(self.time)
         std = np.sqrt(background.get_residual() / weights.sum())
         self.bg_std = np.full_like(self.time, std)
-        print(std)
 
         background_upper = inter.UnivariateSpline(cal_time, cal_sample_upper,
                                                   w=weights, s=s_factor)
