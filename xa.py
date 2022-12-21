@@ -512,6 +512,7 @@ ax1.vlines(cld_low_t, ymin=0, ymax=1, linestyles='dashed',
            color=colors[2], transform=ax1.get_xaxis_transform())
 ax1.vlines(cld_up_t, ymin=0, ymax=1, linestyles='dashed',
            color=colors[2], transform=ax1.get_xaxis_transform())
+ax1.set_ylim((-1.25e38, 2.5e39))
 
 # Access parameter sublpot with P_sep
 ax2.plot(time_wP, X_A_wP)
@@ -527,6 +528,7 @@ ax2.vlines(cld_low_t, ymin=0, ymax=1, linestyles='dashed',
            color=colors[2], transform=ax2.get_xaxis_transform())
 ax2.vlines(cld_up_t, ymin=0, ymax=1, linestyles='dashed',
            color=colors[2], transform=ax2.get_xaxis_transform())
+ax2.set_ylim((-2.5e44, 5.3e45))
 
 # Show plot or save
 plt.tight_layout(pad=0.1)
