@@ -698,6 +698,32 @@ def update_ani(frame):
 ani = FuncAnimation(fig, update_ani, frames=frames, interval=f_interval,
                     blit=True)
 
+
+# WID = 5.512
+# HIG = WID / 1.618
+# X_LABEL = r'Time (s)'
+# Y_LABEL = r'DLX line of sight'
+# C_LABEL = r'Radiation flux (W m$^{-2}$)'
+
+
+# plt.style.use('bmh')
+# plt.figure(figsize=(WID, HIG))
+# plt.rc('font', size=10)
+# plt.rc('axes', titlesize=10)
+# plt.rc('axes', labelsize=12)
+# plt.rc('xtick', labelsize=10)
+# plt.rc('ytick', labelsize=10)
+# plt.rc('legend', fontsize=10)
+
+
+# plt.title(f'Shot #{shot}', loc='right')
+# plt.contourf(time_dlx_flt, dlx_sights, dlx_flt, args.depth, cmap='inferno')
+# plt.plot(time_dlx_flt, xpr_dlx)
+# plt.xlabel(X_LABEL)
+# plt.ylabel(Y_LABEL)
+# plt.colorbar(label=C_LABEL)
+
+
 # Show plot or save
-plt.tight_layout()
+plt.tight_layout(pad=0.1)
 plt.show()
