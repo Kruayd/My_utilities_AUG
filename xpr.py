@@ -601,7 +601,7 @@ ax1.legend()
 # X-point radiator position subplot
 # TO ANIMATE BEGIN
 sep_image, = ax2.plot([], [], '-', color=colors[1])
-xpr_image, = ax2.plot([], [], 'o', color=colors[1])
+xpr_image, = ax2.plot([], [], 'o', color=colors[0])
 r_sep, z_sep = sf.rho2rz(equ, 1, t_in=time_dlx_flt, coord_in='rho_pol')
 # TO ANIMATE END
 # Bolometers drawing
@@ -615,13 +615,13 @@ ddc_end_R = ddc_par['R_end'][ddc_sights - 1]
 ddc_end_Z = ddc_par['z_end'][ddc_sights - 1]
 for i in range(0, dlx_start_R.size):
     ax2.plot([dlx_start_R[i], dlx_end_R[i]], [dlx_start_Z[i], dlx_end_Z[i]],
-             '-', color=colors[3])
+             '-', color='gray')
 for i in range(0, ddc_start_R.size):
     ax2.plot([ddc_start_R[i], ddc_end_R[i]], [ddc_start_Z[i], ddc_end_Z[i]],
-             '-', color=colors[3])
+             '-', color='gray')
 # Vessel drawing
 for gc in gc_d.values():
-    ax2.plot(gc.r, gc.z, '-', color=colors[3])
+    ax2.plot(gc.r, gc.z, '-', color='gray')
 # Settings
 ax2.set_title('X-point radiator position')
 ax2.set_xlabel('R')
@@ -632,7 +632,7 @@ ax2.set_ylim(-1.3, -0.6)
 # DLX subplot
 cont_1 = ax3.contourf(time_dlx_flt, dlx_sights, dlx_flt, args.depth,
                       cmap='inferno')
-ax3.plot(time_dlx_flt, xpr_dlx, color=colors[1])
+ax3.plot(time_dlx_flt, xpr_dlx)
 ax3.set_title('DLX detected radiation')
 ax3.set_xlabel('s')
 ax3.set_ylabel('sight')
@@ -642,7 +642,7 @@ fig.colorbar(cont_1, ax=ax3)
 # DDC subplot
 cont_2 = ax4.contourf(time_ddc_flt, ddc_sights, ddc_flt, args.depth,
                       cmap='inferno')
-ax4.plot(time_ddc_flt, xpr_ddc, color=colors[1])
+ax4.plot(time_ddc_flt, xpr_ddc)
 ax4.set_title('DDC detected radiation')
 ax4.set_xlabel('s')
 ax4.set_ylabel('sight')
@@ -652,7 +652,7 @@ fig.colorbar(cont_2, ax=ax4)
 # Evolution of DLX signal subplot
 # TO ANIMATE BEGIN
 dlx_image, = ax5.plot([], [])
-dlx_peak_image = ax5.axvline(color=colors[0])
+dlx_peak_image = ax5.axvline(color=colors[1])
 # TO ANIMATE END
 ax5.set_title('DLX signal evolution')
 ax5.set_xlabel('sight')
@@ -663,7 +663,7 @@ ax5.set_ylim(dlx_flt.min(), dlx_flt.max())
 # Evolution of DDC signal subplot
 # TO ANIMATE BEGIN
 ddc_image, = ax6.plot([], [])
-ddc_peak_image = ax6.axvline(color=colors[0])
+ddc_peak_image = ax6.axvline(color=colors[1])
 # TO ANIMATE END
 ax6.set_title('DDC signal evolution')
 ax6.set_xlabel('sight')
@@ -685,7 +685,7 @@ axtext.get_yaxis().set_visible(False)
 def update_ani(frame):
     sep_image.set_data(r_sep[frame][0], z_sep[frame][0])
     xpr_image.set_data(xpr_x[..., frame], xpr_y[..., frame])
-    xpr_image.set_color(colors[1])
+    xpr_image.set_color(colors[0])
     dlx_image.set_data(dlx_sights, dlx_flt[..., frame])
     dlx_peak_image.set_xdata(xpr_dlx[frame])
     ddc_image.set_data(ddc_sights, ddc_flt[..., frame])

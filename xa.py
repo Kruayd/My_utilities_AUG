@@ -95,19 +95,6 @@ df_rad_time = pd.read_csv('./csvs/XPR_rad_times.csv', index_col=0).loc[shot]
 
 rad_start = np.atleast_1d(df_rad_time['start'])
 
-rad_low_t = np.atleast_1d(df_rad_time['start']
-                          - df_rad_time['err. start'])
-rad_up_t = np.atleast_1d(df_rad_time['start']
-                         + df_rad_time['err. start'])
-rad_no_t = np.zeros_like(rad_start) - 1
-rad_intervals = np.r_['0,2', rad_low_t, rad_up_t, rad_no_t]
-
-rad_highlight = (rad_intervals != -1).T.flatten()
-
-rad_intervals[2, :-1] = (rad_intervals[0, 1:] + rad_intervals[1, :-1]) / 2
-rad_intervals[2, -1] = rad_intervals[1, -1] + 0.01
-rad_intervals = rad_intervals.T.flatten()
-
 
 df_cld_time = pd.read_csv('./csvs/XPR_cld_times.csv', index_col=0).loc[shot]
 
@@ -516,14 +503,8 @@ ax1.plot(time_wT, X_A_wT)
 ax1.fill_between(time_wT, X_A_low_wT, X_A_upp_wT, alpha=0.5)
 ax1.set_xlabel('Time (s)')
 ax1.set_ylabel(r'$X_A$ with upstream parameters')
-ax1.fill_between(rad_intervals, 0, 1, where=rad_highlight, color=colors[1],
-                 alpha=0.2, transform=ax1.get_xaxis_transform())
-ax1.vlines(rad_low_t, ymin=0, ymax=1, linestyles='dotted', color=colors[1],
-           transform=ax1.get_xaxis_transform())
-ax1.vlines(rad_up_t, ymin=0, ymax=1, linestyles='dotted', color=colors[1],
-           transform=ax1.get_xaxis_transform())
-ax1.vlines(rad_start, ymin=0, ymax=1, color=colors[1],
-           transform=ax1.get_xaxis_transform())
+ax1.vlines(rad_start, ymin=0, ymax=1, linestyles='dotted',
+           color=colors[1], transform=ax1.get_xaxis_transform())
 ax1.fill_between(cld_intervals, 0, 1, where=cld_highlight,
                  color=colors[2], alpha=0.2,
                  transform=ax1.get_xaxis_transform())
@@ -531,22 +512,14 @@ ax1.vlines(cld_low_t, ymin=0, ymax=1, linestyles='dashed',
            color=colors[2], transform=ax1.get_xaxis_transform())
 ax1.vlines(cld_up_t, ymin=0, ymax=1, linestyles='dashed',
            color=colors[2], transform=ax1.get_xaxis_transform())
-ax1.vlines(cld_start, ymin=0, ymax=1, color=colors[2],
-           transform=ax1.get_xaxis_transform())
 
 # Access parameter sublpot with P_sep
 ax2.plot(time_wP, X_A_wP)
 ax2.fill_between(time_wP, X_A_low_wP, X_A_upp_wP, alpha=0.5)
 ax2.set_xlabel('Time (s)')
 ax2.set_ylabel(r'$X_A$ with $P_{sep}$')
-ax2.fill_between(rad_intervals, 0, 1, where=rad_highlight, color=colors[1],
-                 alpha=0.2, transform=ax2.get_xaxis_transform())
-ax2.vlines(rad_low_t, ymin=0, ymax=1, linestyles='dotted', color=colors[1],
-           transform=ax2.get_xaxis_transform())
-ax2.vlines(rad_up_t, ymin=0, ymax=1, linestyles='dotted', color=colors[1],
-           transform=ax2.get_xaxis_transform())
-ax2.vlines(rad_start, ymin=0, ymax=1, color=colors[1],
-           transform=ax2.get_xaxis_transform())
+ax2.vlines(rad_start, ymin=0, ymax=1, linestyles='dotted',
+           color=colors[1], transform=ax2.get_xaxis_transform())
 ax2.fill_between(cld_intervals, 0, 1, where=cld_highlight,
                  color=colors[2], alpha=0.2,
                  transform=ax2.get_xaxis_transform())
@@ -554,8 +527,6 @@ ax2.vlines(cld_low_t, ymin=0, ymax=1, linestyles='dashed',
            color=colors[2], transform=ax2.get_xaxis_transform())
 ax2.vlines(cld_up_t, ymin=0, ymax=1, linestyles='dashed',
            color=colors[2], transform=ax2.get_xaxis_transform())
-ax2.vlines(cld_start, ymin=0, ymax=1, color=colors[2],
-           transform=ax2.get_xaxis_transform())
 
 # Show plot or save
 plt.tight_layout(pad=0.1)
