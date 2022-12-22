@@ -1,4 +1,5 @@
 import sys
+import numpy as np
 import aug_sfutils as sf
 import matplotlib.pyplot as plt
 
@@ -12,15 +13,20 @@ X_LABEL = r'Time (s)'
 SHOT = 38773
 
 
-xvs = sf.SFREAD(SHOT, 'XVS')
+ida = sf.SFREAD(SHOT, 'IDA')
 dtn = sf.SFREAD(SHOT, 'DTN')
 
 
-if xvs.status:
-    ddc = xvs.getobject('S2L0A15', cal=True)
-    time_ddc = xvs.gettimebase('S2L0A15')
+if ida.status:
+    T_u_matrix = ida.getobject('Te', cal=True)
+    area_ida = ida.getareabase('Te')
+    time_ida = ida.gettimebase('Te')
+    ida_idx = sgpr.find_nearest_index(area_ida, 1.0, axis=0)
+    T_u = T_u_matrix[ida_idx, np.arange(time_ida.size)]
+    T_u_low = T_u_matrix[ida_idx + 2, np.arange(time_ida.size)]
+    T_u_upp = T_u_matrix[ida_idx - 1, np.arange(time_ida.size)]
 else:
-    sys.exit('Error while laoding XVS')
+    sys.exit('Error while laoding IDA')
 
 if dtn.status:
     Te = dtn.getobject('Te_ld', cal=True)
@@ -30,17 +36,19 @@ else:
     sys.exit('Error while laoding DTN')
 
 
-start = max(time_ddc[0], time_Te[0])
-end = min(time_ddc[-1], time_Te[-1])
+start = max(time_ida[0], time_Te[0])
+end = min(time_ida[-1], time_Te[-1])
 
-start_index_ddc = sgpr.find_nearest_index(time_ddc, start)
-end_index_ddc = sgpr.find_nearest_index(time_ddc, end)
+start_index_ida = sgpr.find_nearest_index(time_ida, start)
+end_index_ida = sgpr.find_nearest_index(time_ida, end)
 
 start_index_Te = sgpr.find_nearest_index(time_Te, start)
 end_index_Te = sgpr.find_nearest_index(time_Te, end)
 
-ddc = ddc[start_index_ddc:end_index_ddc+1]
-time_ddc = time_ddc[start_index_ddc:end_index_ddc+1]
+T_u = T_u[start_index_ida:end_index_ida+1]
+T_u_low = T_u_low[start_index_ida:end_index_ida+1]
+T_u_upp = T_u_upp[start_index_ida:end_index_ida+1]
+time_ida = time_ida[start_index_ida:end_index_ida+1]
 
 Te = Te[..., start_index_Te:end_index_Te+1]
 time_Te = time_Te[start_index_Te:end_index_Te+1]
@@ -62,9 +70,10 @@ ax2 = plt.subplot2grid((2, 1), (1, 0), rowspan=1, colspan=1)
 
 
 ax1.set_title(f'Shot #{SHOT}', loc='right')
-ax1.plot(time_ddc, ddc)
+ax1.plot(time_ida, T_u)
+ax1.fill_between(time_ida, T_u_low, T_u_upp, alpha=0.2)
 ax1.set_xlabel(X_LABEL)
-ax1.set_ylabel(r'Radiation flux (W m$^{-2}$)')
+ax1.set_ylabel(r'Electron temperature (eV)')
 
 ax2.plot(time_Te, Te[9])
 ax2.plot(time_Te, Te[10])
