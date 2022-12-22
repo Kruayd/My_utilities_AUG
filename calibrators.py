@@ -13,7 +13,7 @@ MAN_CSV_CAL = './csvs/IOC_calibrator.csv'
 
 class SFIOCF01():
 
-    def __init__(self, shot: int, sensitivity=MAN_N_CAL):
+    def __init__(self, shot: int, sensitivity=MAN_N_CAL, interpolate=False):
         self.sfobject = sf.SFREAD(shot, 'IOC')
 
         self.status = self.sfobject.status
@@ -56,6 +56,20 @@ class SFIOCF01():
                                     sensitivity)
         else:
             sys.exit('Calibration method not yet implemented')
+
+        if interpolate:
+            not_nan = ~np.isnan(self.flux)
+            compl = inter.UnivariateSpline(self.time[not_nan],
+                                           self.flux[not_nan], s=0)
+            self.flux = compl(self.time)
+
+            compl_low = inter.UnivariateSpline(self.time[not_nan],
+                                               self.f_lower[not_nan], s=0)
+            self.f_lower = compl_low(self.time)
+
+            compl_upp = inter.UnivariateSpline(self.time[not_nan],
+                                               self.f_upper[not_nan], s=0)
+            self.f_upper = compl_upp(self.time)
 
     def getobject(self, name: str):
         if name == 'F01':

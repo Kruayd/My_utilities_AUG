@@ -128,7 +128,7 @@ shot_end = df_shot_time['end']
 # data analysis, ionization manometers, total injected power and power radiated
 # inside the separatrix
 
-OVERRIDE = True
+OVERRIDE = False
 
 fpg = sf.SFREAD(shot, FPG_DIAG)
 equ = sf.EQU(shot, diag=mag_equ_diag)
@@ -478,6 +478,10 @@ X_A_low_wP = R_0_wP**2 * q_95_wP**(8/9) * f_exp_wP * n_0_low_wP * \
         n_u_low_wP**(14/9) / ((P_tot_wP - P_rad_low_wP)**(10/9))
 X_A_upp_wP = R_0_wP**2 * q_95_wP**(8/9) * f_exp_wP * n_0_upp_wP * \
         n_u_upp_wP**(14/9) / ((P_tot_wP - P_rad_upp_wP)**(10/9))
+X_A_l_wP = R_0_wP**2 * q_95_wP**(8/9) * f_exp_wP * n_0_low_wP * \
+        n_u_wP**(14/9) / ((P_tot_wP - P_rad_low_wP)**(10/9))
+X_A_u_wP = R_0_wP**2 * q_95_wP**(8/9) * f_exp_wP * n_0_upp_wP * \
+        n_u_wP**(14/9) / ((P_tot_wP - P_rad_upp_wP)**(10/9))
 
 print('X_A evaluated with P_sep')
 
@@ -502,10 +506,10 @@ ax2 = plt.subplot2grid((2, 1), (1, 0), rowspan=1, colspan=1)
 
 # Access parameter sublpot with T_u
 ax1.set_title(f'Shot #{shot}', loc='right')
-ax1.plot(time_wT, X_A_wT)
-ax1.fill_between(time_wT, X_A_low_wT, X_A_upp_wT, alpha=0.5)
+ax1.plot(time_wP, X_A_wP)
+ax1.fill_between(time_wP, X_A_low_wP, X_A_upp_wP, alpha=0.5)
 ax1.set_xlabel('Time (s)')
-ax1.set_ylabel(r'$X_A$')
+ax1.set_ylabel(r'$X_{A,eng}$')
 ax1.vlines(rad_start, ymin=0, ymax=1, linestyles='dotted',
            color=colors[1], transform=ax1.get_xaxis_transform())
 ax1.fill_between(cld_intervals, 0, 1, where=cld_highlight,
@@ -515,11 +519,11 @@ ax1.vlines(cld_low_t, ymin=0, ymax=1, linestyles='dashed',
            color=colors[2], transform=ax1.get_xaxis_transform())
 ax1.vlines(cld_up_t, ymin=0, ymax=1, linestyles='dashed',
            color=colors[2], transform=ax1.get_xaxis_transform())
-ax1.set_ylim((-1.25e38, 2.5e39))
+ax1.set_ylim((-2.5e44, 5.3e45))
 
 # Access parameter sublpot with P_sep
 ax2.plot(time_wP, X_A_wP)
-ax2.fill_between(time_wP, X_A_low_wP, X_A_upp_wP, alpha=0.5)
+ax2.fill_between(time_wP, X_A_l_wP, X_A_u_wP, alpha=0.5)
 ax2.set_xlabel('Time (s)')
 ax2.set_ylabel(r'$X_{A,eng}$')
 ax2.vlines(rad_start, ymin=0, ymax=1, linestyles='dotted',
