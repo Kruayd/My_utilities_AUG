@@ -47,9 +47,11 @@ else:
 if ioc.status:
     background = ioc.bg_fit
     confidence = ioc.bg_std
+    n_0 = ioc.getobject('F01').astype(np.double)
     time_ioc = ioc.gettimebase()
     background = background * ioc_2_n
     confidence = confidence * ioc_2_n
+    n_0 = n_0 * ioc_2_n
 else:
     sys.exit('Error while loading calibrated IOC')
 
@@ -69,6 +71,7 @@ raw_n = raw_n[..., start_index_ioc:end_index_ioc + 1]
 time_raw = time_raw[..., start_index_ioc:end_index_ioc + 1]
 background = background[..., start_index_ioc:end_index_ioc + 1]
 confidence = confidence[..., start_index_ioc:end_index_ioc + 1]
+n_0 = n_0[..., start_index_ioc:end_index_ioc + 1]
 time_ioc = time_ioc[..., start_index_ioc:end_index_ioc + 1]
 
 
@@ -97,6 +100,7 @@ ax2.plot(time_raw, raw_n)
 ax2.plot(time_ioc, background, '--')
 ax2.fill_between(time_ioc, 0, background + 2*confidence, color=colors[1],
                  alpha=0.2)
+ax2.plot(time_ioc, n_0, '-.')
 ax2.set_xlabel(X_LABEL)
 ax2.set_ylabel(Y_LABEL)
 
