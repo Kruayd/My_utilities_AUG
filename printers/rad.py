@@ -9,7 +9,7 @@ HIG = WID / 1.618
 X_LABEL = r'Time (s)'
 Y_LABEL = r'Radiated power (W)'
 
-SHOT = 41158
+SHOT = 40365
 
 
 bpt = sf.SFREAD(SHOT, 'BPT', exp='DAVIDP')

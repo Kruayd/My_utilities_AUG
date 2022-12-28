@@ -10,7 +10,7 @@ DEPTH = 50
 X_LABEL = r'Time (s)'
 Y_LABEL = r'flux expansion'
 
-SHOT = 41137
+SHOT = 40365
 FPG_DIAG = 'GQH'
 MAG_EQU_DIAG = 'EQH'
 

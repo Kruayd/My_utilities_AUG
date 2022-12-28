@@ -14,7 +14,7 @@ X_LABEL = r'Time (s)'
 Y_LABEL = r'DLX line of sight'
 C_LABEL = r'Radiation flux (W m$^{-2}$)'
 
-SHOT = 40366
+SHOT = 41158
 TIME_WINDOW = 50.
 F_S_BOL = 500.
 
@@ -78,9 +78,9 @@ plt.rc('legend', fontsize=10)
 
 # DLX subplot
 plt.title(f'Shot #{SHOT}', loc='right')
-# plt.plot(time_dlx, dlx[5])
-# plt.plot(time_dlx_flt, dlx_flt[5], '--')
-plt.contourf(time_dlx, dlx_sights, dlx, DEPTH, cmap='inferno')
+plt.plot(time_dlx, dlx[5])
+plt.plot(time_dlx_flt, dlx_flt[5], '--')
+# plt.contourf(time_dlx, dlx_sights, dlx, DEPTH, cmap='inferno')
 plt.xlabel(X_LABEL)
 plt.ylabel(Y_LABEL)
 plt.colorbar(label=C_LABEL)
