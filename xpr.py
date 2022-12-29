@@ -570,158 +570,158 @@ if args.output_to_csv:
     df.to_csv(FILE_NAME, index=False, na_rep='NaN')
 
 
-# PLOTTING
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# General settings
-plt.style.use('bmh')
-colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-px = 1/plt.rcParams['figure.dpi']  # from pixel to inches
-fig = plt.figure(figsize=(1600*px, 1000*px))
-plt.suptitle(f'SHOT #{shot}', fontsize=32, fontweight='bold')
-frames = time_dlx_flt.size
-
-# Subplots
-ax1 = plt.subplot2grid((3, 3), (0, 0), rowspan=1, colspan=2)
-axtext = plt.subplot2grid((3, 3), (0, 2), rowspan=1, colspan=1)
-ax2 = plt.subplot2grid((3, 3), (1, 2), rowspan=2, colspan=1, aspect='equal')
-ax3 = plt.subplot2grid((3, 3), (1, 0), rowspan=1, colspan=1)
-ax4 = plt.subplot2grid((3, 3), (1, 1), rowspan=1, colspan=1)
-ax5 = plt.subplot2grid((3, 3), (2, 0), rowspan=1, colspan=1)
-ax6 = plt.subplot2grid((3, 3), (2, 1), rowspan=1, colspan=1)
-
-# Te_ld subplot
-ax1.plot(time_Te_ld, Te_ld[9], label='10th core')
-ax1.plot(time_Te_ld, Te_ld[10], label='11th core')
-ax1.plot(time_Te_ld, Te_ld[11], label='12th core')
-ax1.set_title('DTS electron temperature nearby X-point')
-ax1.set_xlabel('s')
-ax1.set_ylabel('eV')
-ax1.legend()
-
-# X-point radiator position subplot
-# TO ANIMATE BEGIN
-sep_image, = ax2.plot([], [], '-', color=colors[1])
-xpr_image, = ax2.plot([], [], 'o', color=colors[0])
-r_sep, z_sep = sf.rho2rz(equ, 1, t_in=time_dlx_flt, coord_in='rho_pol')
-# TO ANIMATE END
-# Bolometers drawing
-dlx_start_R = dlx_par['R_Blende'][dlx_sights - 1]
-dlx_start_Z = dlx_par['z_Blende'][dlx_sights - 1]
-dlx_end_R = dlx_par['R_end'][dlx_sights - 1]
-dlx_end_Z = dlx_par['z_end'][dlx_sights - 1]
-ddc_start_R = ddc_par['R_Blende'][ddc_sights - 1]
-ddc_start_Z = ddc_par['z_Blende'][ddc_sights - 1]
-ddc_end_R = ddc_par['R_end'][ddc_sights - 1]
-ddc_end_Z = ddc_par['z_end'][ddc_sights - 1]
-for i in range(0, dlx_start_R.size):
-    ax2.plot([dlx_start_R[i], dlx_end_R[i]], [dlx_start_Z[i], dlx_end_Z[i]],
-             '-', color='gray')
-for i in range(0, ddc_start_R.size):
-    ax2.plot([ddc_start_R[i], ddc_end_R[i]], [ddc_start_Z[i], ddc_end_Z[i]],
-             '-', color='gray')
-# Vessel drawing
-for gc in gc_d.values():
-    ax2.plot(gc.r, gc.z, '-', color='gray')
-# Settings
-ax2.set_title('X-point radiator position')
-ax2.set_xlabel('R')
-ax2.set_ylabel('z')
-ax2.set_xlim(1.1, 1.8)
-ax2.set_ylim(-1.3, -0.6)
-
-# DLX subplot
-cont_1 = ax3.contourf(time_dlx_flt, dlx_sights, dlx_flt, args.depth,
-                      cmap='inferno')
-ax3.plot(time_dlx_flt, xpr_dlx)
-ax3.set_title('DLX detected radiation')
-ax3.set_xlabel('s')
-ax3.set_ylabel('sight')
-ax3.set_ylim(dlx_sights.min(), dlx_sights.max())
-fig.colorbar(cont_1, ax=ax3)
-
-# DDC subplot
-cont_2 = ax4.contourf(time_ddc_flt, ddc_sights, ddc_flt, args.depth,
-                      cmap='inferno')
-ax4.plot(time_ddc_flt, xpr_ddc)
-ax4.set_title('DDC detected radiation')
-ax4.set_xlabel('s')
-ax4.set_ylabel('sight')
-ax4.set_ylim(ddc_sights.min(), ddc_sights.max())
-fig.colorbar(cont_2, ax=ax4)
-
-# Evolution of DLX signal subplot
-# TO ANIMATE BEGIN
-dlx_image, = ax5.plot([], [])
-dlx_peak_image = ax5.axvline(color=colors[1])
-# TO ANIMATE END
-ax5.set_title('DLX signal evolution')
-ax5.set_xlabel('sight')
-ax5.set_ylabel('W $m^{-2}$')
-ax5.set_xlim(dlx_sights[0]-0.5, dlx_sights[-1]+0.5)
-ax5.set_ylim(dlx_flt.min(), dlx_flt.max())
-
-# Evolution of DDC signal subplot
-# TO ANIMATE BEGIN
-ddc_image, = ax6.plot([], [])
-ddc_peak_image = ax6.axvline(color=colors[1])
-# TO ANIMATE END
-ax6.set_title('DDC signal evolution')
-ax6.set_xlabel('sight')
-ax6.set_ylabel('W $m^{-2}$')
-ax6.set_xlim(ddc_sights[0]-0.5, ddc_sights[-1]+0.5)
-ax6.set_ylim(ddc_flt.min(), ddc_flt.max())
-
-# Timestamp subplot
-# TO ANIMATE BEGIN
-timestamp = axtext.text(0.5, 0.5, f'Time:  {0:.3f} s', fontsize=32,
-                        fontweight='bold', ha='center', va='center',
-                        transform=axtext.transAxes)
-# TO ANIMATE END
-axtext.set_facecolor('white')
-axtext.get_xaxis().set_visible(False)
-axtext.get_yaxis().set_visible(False)
-
-
-def update_ani(frame):
-    sep_image.set_data(r_sep[frame][0], z_sep[frame][0])
-    xpr_image.set_data(xpr_x[..., frame], xpr_y[..., frame])
-    xpr_image.set_color(colors[0])
-    dlx_image.set_data(dlx_sights, dlx_flt[..., frame])
-    dlx_peak_image.set_xdata(xpr_dlx[frame])
-    ddc_image.set_data(ddc_sights, ddc_flt[..., frame])
-    ddc_peak_image.set_xdata(xpr_ddc[frame])
-    timestamp.set_text(f'Time:  {time_dlx_flt[frame]:.3f} s')
-    return sep_image, xpr_image, dlx_image, dlx_peak_image, ddc_image, \
-        ddc_peak_image, timestamp
-
-
-ani = FuncAnimation(fig, update_ani, frames=frames, interval=f_interval,
-                    blit=True)
-
-
-# WID = 5.512
-# HIG = WID / 1.618
-# X_LABEL = r'Time (s)'
-# Y_LABEL = r'DLX line of sight'
-# C_LABEL = r'Radiation flux (W m$^{-2}$)'
-
-
+# # PLOTTING
+# # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# # General settings
 # plt.style.use('bmh')
-# plt.figure(figsize=(WID, HIG))
-# plt.rc('font', size=10)
-# plt.rc('axes', titlesize=10)
-# plt.rc('axes', labelsize=12)
-# plt.rc('xtick', labelsize=10)
-# plt.rc('ytick', labelsize=10)
-# plt.rc('legend', fontsize=10)
+# colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+# px = 1/plt.rcParams['figure.dpi']  # from pixel to inches
+# fig = plt.figure(figsize=(1600*px, 1000*px))
+# plt.suptitle(f'SHOT #{shot}', fontsize=32, fontweight='bold')
+# frames = time_dlx_flt.size
+# 
+# # Subplots
+# ax1 = plt.subplot2grid((3, 3), (0, 0), rowspan=1, colspan=2)
+# axtext = plt.subplot2grid((3, 3), (0, 2), rowspan=1, colspan=1)
+# ax2 = plt.subplot2grid((3, 3), (1, 2), rowspan=2, colspan=1, aspect='equal')
+# ax3 = plt.subplot2grid((3, 3), (1, 0), rowspan=1, colspan=1)
+# ax4 = plt.subplot2grid((3, 3), (1, 1), rowspan=1, colspan=1)
+# ax5 = plt.subplot2grid((3, 3), (2, 0), rowspan=1, colspan=1)
+# ax6 = plt.subplot2grid((3, 3), (2, 1), rowspan=1, colspan=1)
+# 
+# # Te_ld subplot
+# ax1.plot(time_Te_ld, Te_ld[9], label='10th core')
+# ax1.plot(time_Te_ld, Te_ld[10], label='11th core')
+# ax1.plot(time_Te_ld, Te_ld[11], label='12th core')
+# ax1.set_title('DTS electron temperature nearby X-point')
+# ax1.set_xlabel('s')
+# ax1.set_ylabel('eV')
+# ax1.legend()
+# 
+# # X-point radiator position subplot
+# # TO ANIMATE BEGIN
+# sep_image, = ax2.plot([], [], '-', color=colors[1])
+# xpr_image, = ax2.plot([], [], 'o', color=colors[0])
+# r_sep, z_sep = sf.rho2rz(equ, 1, t_in=time_dlx_flt, coord_in='rho_pol')
+# # TO ANIMATE END
+# # Bolometers drawing
+# dlx_start_R = dlx_par['R_Blende'][dlx_sights - 1]
+# dlx_start_Z = dlx_par['z_Blende'][dlx_sights - 1]
+# dlx_end_R = dlx_par['R_end'][dlx_sights - 1]
+# dlx_end_Z = dlx_par['z_end'][dlx_sights - 1]
+# ddc_start_R = ddc_par['R_Blende'][ddc_sights - 1]
+# ddc_start_Z = ddc_par['z_Blende'][ddc_sights - 1]
+# ddc_end_R = ddc_par['R_end'][ddc_sights - 1]
+# ddc_end_Z = ddc_par['z_end'][ddc_sights - 1]
+# for i in range(0, dlx_start_R.size):
+#     ax2.plot([dlx_start_R[i], dlx_end_R[i]], [dlx_start_Z[i], dlx_end_Z[i]],
+#              '-', color='gray')
+# for i in range(0, ddc_start_R.size):
+#     ax2.plot([ddc_start_R[i], ddc_end_R[i]], [ddc_start_Z[i], ddc_end_Z[i]],
+#              '-', color='gray')
+# # Vessel drawing
+# for gc in gc_d.values():
+#     ax2.plot(gc.r, gc.z, '-', color='gray')
+# # Settings
+# ax2.set_title('X-point radiator position')
+# ax2.set_xlabel('R')
+# ax2.set_ylabel('z')
+# ax2.set_xlim(1.1, 1.8)
+# ax2.set_ylim(-1.3, -0.6)
+# 
+# # DLX subplot
+# cont_1 = ax3.contourf(time_dlx_flt, dlx_sights, dlx_flt, args.depth,
+#                       cmap='inferno')
+# ax3.plot(time_dlx_flt, xpr_dlx)
+# ax3.set_title('DLX detected radiation')
+# ax3.set_xlabel('s')
+# ax3.set_ylabel('sight')
+# ax3.set_ylim(dlx_sights.min(), dlx_sights.max())
+# fig.colorbar(cont_1, ax=ax3)
+# 
+# # DDC subplot
+# cont_2 = ax4.contourf(time_ddc_flt, ddc_sights, ddc_flt, args.depth,
+#                       cmap='inferno')
+# ax4.plot(time_ddc_flt, xpr_ddc)
+# ax4.set_title('DDC detected radiation')
+# ax4.set_xlabel('s')
+# ax4.set_ylabel('sight')
+# ax4.set_ylim(ddc_sights.min(), ddc_sights.max())
+# fig.colorbar(cont_2, ax=ax4)
+# 
+# # Evolution of DLX signal subplot
+# # TO ANIMATE BEGIN
+# dlx_image, = ax5.plot([], [])
+# dlx_peak_image = ax5.axvline(color=colors[1])
+# # TO ANIMATE END
+# ax5.set_title('DLX signal evolution')
+# ax5.set_xlabel('sight')
+# ax5.set_ylabel('W $m^{-2}$')
+# ax5.set_xlim(dlx_sights[0]-0.5, dlx_sights[-1]+0.5)
+# ax5.set_ylim(dlx_flt.min(), dlx_flt.max())
+# 
+# # Evolution of DDC signal subplot
+# # TO ANIMATE BEGIN
+# ddc_image, = ax6.plot([], [])
+# ddc_peak_image = ax6.axvline(color=colors[1])
+# # TO ANIMATE END
+# ax6.set_title('DDC signal evolution')
+# ax6.set_xlabel('sight')
+# ax6.set_ylabel('W $m^{-2}$')
+# ax6.set_xlim(ddc_sights[0]-0.5, ddc_sights[-1]+0.5)
+# ax6.set_ylim(ddc_flt.min(), ddc_flt.max())
+# 
+# # Timestamp subplot
+# # TO ANIMATE BEGIN
+# timestamp = axtext.text(0.5, 0.5, f'Time:  {0:.3f} s', fontsize=32,
+#                         fontweight='bold', ha='center', va='center',
+#                         transform=axtext.transAxes)
+# # TO ANIMATE END
+# axtext.set_facecolor('white')
+# axtext.get_xaxis().set_visible(False)
+# axtext.get_yaxis().set_visible(False)
+# 
+# 
+# def update_ani(frame):
+#     sep_image.set_data(r_sep[frame][0], z_sep[frame][0])
+#     xpr_image.set_data(xpr_x[..., frame], xpr_y[..., frame])
+#     xpr_image.set_color(colors[0])
+#     dlx_image.set_data(dlx_sights, dlx_flt[..., frame])
+#     dlx_peak_image.set_xdata(xpr_dlx[frame])
+#     ddc_image.set_data(ddc_sights, ddc_flt[..., frame])
+#     ddc_peak_image.set_xdata(xpr_ddc[frame])
+#     timestamp.set_text(f'Time:  {time_dlx_flt[frame]:.3f} s')
+#     return sep_image, xpr_image, dlx_image, dlx_peak_image, ddc_image, \
+#         ddc_peak_image, timestamp
+# 
+# 
+# ani = FuncAnimation(fig, update_ani, frames=frames, interval=f_interval,
+#                     blit=True)
 
 
-# plt.title(f'Shot #{shot}', loc='right')
-# plt.contourf(time_dlx_flt, dlx_sights, dlx_flt, args.depth, cmap='inferno')
-# plt.plot(time_dlx_flt, xpr_dlx)
-# plt.xlabel(X_LABEL)
-# plt.ylabel(Y_LABEL)
-# plt.colorbar(label=C_LABEL)
+WID = 5.512
+HIG = WID / 1.618
+X_LABEL = r'Time (s)'
+Y_LABEL = r'DLX line of sight'
+C_LABEL = r'Radiation flux (W m$^{-2}$)'
+
+
+plt.style.use('bmh')
+plt.figure(figsize=(WID, HIG))
+plt.rc('font', size=10)
+plt.rc('axes', titlesize=10)
+plt.rc('axes', labelsize=12)
+plt.rc('xtick', labelsize=10)
+plt.rc('ytick', labelsize=10)
+plt.rc('legend', fontsize=10)
+
+
+plt.title(f'Shot #{shot}', loc='right')
+plt.contourf(time_dlx_flt, dlx_sights, dlx_flt, args.depth, cmap='inferno')
+plt.plot(time_dlx_flt, xpr_dlx)
+plt.xlabel(X_LABEL)
+plt.ylabel(Y_LABEL)
+plt.colorbar(label=C_LABEL)
 
 
 # Show plot or save

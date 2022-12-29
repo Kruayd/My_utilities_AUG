@@ -54,11 +54,11 @@ ax2 = plt.subplot2grid((2, 1), (1, 0), rowspan=1, colspan=1)
 
 
 ax1.set_title(f'Shot #{SHOT}', loc='right')
-ax1.plot(time_ddc, ddc)
+ax1.plot(time_ddc, ddc, linewidth=1)
 ax1.set_xlabel(X_LABEL)
 ax1.set_ylabel(r'Radiation flux (W m$^{-2}$)')
 
-ax2.plot(time_ddc_zoom, ddc_zoom)
+ax2.plot(time_ddc_zoom, ddc_zoom, linewidth=1)
 ax2.set_xlabel(X_LABEL)
 ax2.set_ylabel(r'Radiation flux (W m$^{-2}$)')
 

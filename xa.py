@@ -16,6 +16,7 @@ import pandas as pd
 import numpy as np
 import aug_sfutils as sf
 import scipy.ndimage as ndm
+import scipy.io
 import matplotlib.pyplot as plt
 
 import sig_proc as sgpr
@@ -26,7 +27,7 @@ import calibrators as cal
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Plot sizes
 WID = 5.512
-HIG = 2*WID / 1.618
+HIG = 3*WID / 1.618
 
 
 # OPTIONS HANDLER
@@ -160,17 +161,21 @@ else:
 
 if ida.status:
     T_u_matrix = ida.getobject('Te', cal=True).astype(np.double)
+    T_u_low_matrix = ida.getobject('Te_lo', cal=True).astype(np.double)
+    T_u_upp_matrix = ida.getobject('Te_up', cal=True).astype(np.double)
     n_u_matrix = ida.getobject('ne', cal=True).astype(np.double)
+    n_u_low_matrix = ida.getobject('ne_lo', cal=True).astype(np.double)
+    n_u_upp_matrix = ida.getobject('ne_up', cal=True).astype(np.double)
     area_ida = ida.getareabase('Te')
     time_ida = ida.gettimebase('Te')
     # Choosing separatrix data
     ida_idx = sgpr.find_nearest_index(area_ida, 1.0, axis=0)
     T_u = T_u_matrix[ida_idx, np.arange(time_ida.size)]
-    T_u_low = T_u_matrix[ida_idx + 2, np.arange(time_ida.size)]
-    T_u_upp = T_u_matrix[ida_idx - 1, np.arange(time_ida.size)]
+    T_u_low = T_u_low_matrix[ida_idx, np.arange(time_ida.size)]
+    T_u_upp = T_u_upp_matrix[ida_idx, np.arange(time_ida.size)]
     n_u = n_u_matrix[ida_idx, np.arange(time_ida.size)]
-    n_u_low = n_u_matrix[ida_idx + 2, np.arange(time_ida.size)]
-    n_u_upp = n_u_matrix[ida_idx - 1, np.arange(time_ida.size)]
+    n_u_low = n_u_low_matrix[ida_idx, np.arange(time_ida.size)]
+    n_u_upp = n_u_upp_matrix[ida_idx, np.arange(time_ida.size)]
 else:
     sys.exit('Error while loading IDA')
 
@@ -200,6 +205,14 @@ if bpt.status:
     time_bpt = bpt.gettimebase('Pr_sepX')
 else:
     sys.exit('Error while loading BPT')
+
+
+mat = scipy.io.loadmat('./T_Eich_data/sep_asdex_high_' + str(shot) +
+                       '.mat')['sosdata']
+time_2pm = mat[4]
+T_u_2pm = mat[1]
+n_u_2pm = mat[0]
+
 
 print('\n\n')
 print('Querying: done')
@@ -482,6 +495,119 @@ X_A_upp_wP = R_0_wP**2 * q_95_wP**(8/9) * f_exp_wP * n_0_upp_wP * \
 print('X_A evaluated with P_sep')
 
 
+# UNIVERSAL TIME SELECTION FOR 2pm
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Get maximum common time interval boundaries
+start_2pm = max(time_fpg[0], time_2pm[0], time_ioc[0], shot_start)
+end_2pm = min(time_fpg[-1], time_2pm[-1], time_ioc[-1], shot_end)
+
+# Get indexes of boundaries for FPG
+start_index_fpg_2pm = sgpr.find_nearest_index(time_fpg, start_2pm)
+end_index_fpg_2pm = sgpr.find_nearest_index(time_fpg, end_2pm)
+
+# Get indexes of boundaries for 2pm
+start_index_2pm = sgpr.find_nearest_index(time_2pm, start_2pm)
+end_index_2pm = sgpr.find_nearest_index(time_2pm, end_2pm)
+
+# Get indexes of boundaries for IOC
+start_index_ioc_2pm = sgpr.find_nearest_index(time_ioc, start_2pm)
+end_index_ioc_2pm = sgpr.find_nearest_index(time_ioc, end_2pm)
+
+# Slice FPG quantities and relative time
+R_0_2pm = r_magax[..., start_index_fpg_2pm:end_index_fpg_2pm + 1]
+a_2pm = a[..., start_index_fpg_2pm:end_index_fpg_2pm + 1]
+q_95_2pm = q_95[..., start_index_fpg_2pm:end_index_fpg_2pm + 1]
+f_exp_2pm = f_exp[..., start_index_fpg_2pm:end_index_fpg_2pm + 1]
+time_fpg_2pm = time_fpg[..., start_index_fpg_2pm:end_index_fpg_2pm + 1]
+
+# Slice 2pm quantities and relative time
+T_u_2pm = T_u_2pm[..., start_index_2pm:end_index_2pm + 1]
+n_u_2pm = n_u_2pm[..., start_index_2pm:end_index_2pm + 1]
+time_2pm = time_2pm[..., start_index_2pm:end_index_2pm + 1]
+
+# Slice IOB quantities and relative time
+n_0_2pm = n_0[..., start_index_ioc_2pm:end_index_ioc_2pm + 1]
+n_0_low_2pm = n_0_low[..., start_index_ioc_2pm:end_index_ioc_2pm + 1]
+n_0_upp_2pm = n_0_upp[..., start_index_ioc_2pm:end_index_ioc_2pm + 1]
+time_ioc_2pm = time_ioc[..., start_index_ioc_2pm:end_index_ioc_2pm + 1]
+
+
+print('Time selection done')
+
+
+# SAMPLING RATES
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Evaluate sampling rate for subsequent downsampling (sampling rates in the
+# middle of a time trace are more reliable than averages)
+f_s_fpg_2pm = 1 / (time_fpg_2pm[int(time_fpg_2pm.size / 2) + 1] -
+                   time_fpg_2pm[int(time_fpg_2pm.size / 2)])
+f_s_2pm = 1 / (time_2pm[int(time_2pm.size / 2) + 1] -
+               time_2pm[int(time_2pm.size / 2)])
+f_s_ioc_2pm = 1 / (time_ioc_2pm[int(time_ioc_2pm.size / 2) + 1] -
+                   time_ioc_2pm[int(time_ioc_2pm.size / 2)])
+
+print('Sampling rates evaluated')
+
+
+# SPECIFIC TIME POINTS SELECTION AND FILTERING FOR X_A WITH 2pm
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Query for shortest time array. It will be used to evaluate sampling rate for
+# gaussian filters sigma computation and for resampling
+time_w2pm = sgpr.shortest_array([time_fpg_2pm, time_2pm, time_ioc_2pm])
+f_s_w2pm = 1 / (time_w2pm[int(time_w2pm.size / 2) + 1] -
+                time_w2pm[int(time_w2pm.size / 2)])
+
+# Apply gaussian filter to FPG quantities
+R_0_w2pm = ndm.gaussian_filter(R_0_2pm, f_s_fpg_2pm / (2 * f_s_w2pm))
+a_w2pm = ndm.gaussian_filter(a_2pm, f_s_fpg_2pm / (2 * f_s_w2pm))
+q_95_w2pm = ndm.gaussian_filter(q_95_2pm, f_s_fpg_2pm / (2 * f_s_w2pm))
+f_exp_w2pm = ndm.gaussian_filter(f_exp_2pm, f_s_fpg_2pm / (2 * f_s_w2pm))
+
+# Apply gaussian filter to 2pm quantities
+T_u_w2pm = ndm.gaussian_filter(T_u_2pm, f_s_2pm / (2 * f_s_w2pm))
+n_u_w2pm = ndm.gaussian_filter(n_u_2pm, f_s_2pm / (2 * f_s_w2pm))
+
+# Apply gaussian filter to IOB quantities
+n_0_w2pm = ndm.gaussian_filter(n_0_2pm, f_s_ioc_2pm / (2 * f_s_w2pm))
+n_0_low_w2pm = ndm.gaussian_filter(n_0_low_2pm, f_s_ioc_2pm / (2 * f_s_w2pm))
+n_0_upp_w2pm = ndm.gaussian_filter(n_0_upp_2pm, f_s_ioc_2pm / (2 * f_s_w2pm))
+
+# Re-slice FPG quantities
+fpg_indexes_w2pm, _ = sgpr.find_nearest_multiple_index(time_fpg_2pm, time_w2pm)
+R_0_w2pm = R_0_w2pm[fpg_indexes_w2pm]
+a_w2pm = a_w2pm[fpg_indexes_w2pm]
+q_95_w2pm = q_95_w2pm[fpg_indexes_w2pm]
+f_exp_w2pm = f_exp_w2pm[fpg_indexes_w2pm]
+time_fpg_w2pm = time_fpg_2pm[fpg_indexes_w2pm]
+
+# Re-slice 2pm quantities
+tpm_indexes_w2pm, _ = sgpr.find_nearest_multiple_index(time_2pm, time_w2pm)
+T_u_w2pm = T_u_w2pm[tpm_indexes_w2pm]
+n_u_w2pm = n_u_w2pm[tpm_indexes_w2pm]
+time_2pm_w2pm = time_2pm[tpm_indexes_w2pm]
+
+# Re-slice IOB quantities
+ioc_indexes_w2pm, _ = sgpr.find_nearest_multiple_index(time_ioc_2pm, time_w2pm)
+n_0_w2pm = n_0_w2pm[ioc_indexes_w2pm]
+n_0_low_w2pm = n_0_low_w2pm[ioc_indexes_w2pm]
+n_0_upp_w2pm = n_0_upp_w2pm[ioc_indexes_w2pm]
+time_ioc_w2pm = time_ioc_2pm[ioc_indexes_w2pm]
+
+print('Downsampling executed')
+
+
+# EVALUATION OF X_A WITH 2pm
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+X_A_w2pm = R_0_w2pm**2 * q_95_w2pm**2 * f_exp_w2pm * n_u_w2pm * \
+        n_0_w2pm / (a_w2pm * T_u_w2pm**(5/2))
+X_A_low_w2pm = R_0_w2pm**2 * q_95_w2pm**2 * f_exp_w2pm * n_u_w2pm * \
+        n_0_low_w2pm / (a_w2pm * T_u_w2pm**(5/2))
+X_A_upp_w2pm = R_0_w2pm**2 * q_95_w2pm**2 * f_exp_w2pm * n_u_w2pm * \
+        n_0_upp_w2pm / (a_w2pm * T_u_w2pm**(5/2))
+
+print('X_A evaluated with 2pm')
+
+
 # PLOTTING
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # General settings
@@ -497,12 +623,13 @@ colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
 
 # Subplots
-ax1 = plt.subplot2grid((2, 1), (0, 0), rowspan=1, colspan=1)
-ax2 = plt.subplot2grid((2, 1), (1, 0), rowspan=1, colspan=1)
+ax1 = plt.subplot2grid((3, 1), (0, 0), rowspan=1, colspan=1)
+ax2 = plt.subplot2grid((3, 1), (1, 0), rowspan=1, colspan=1)
+ax3 = plt.subplot2grid((3, 1), (2, 0), rowspan=1, colspan=1)
 
 # Access parameter sublpot with T_u
 ax1.set_title(f'Shot #{shot}', loc='right')
-ax1.plot(time_wT, X_A_wT)
+ax1.plot(time_wT, X_A_wT, linewidth=1)
 ax1.fill_between(time_wT, X_A_low_wT, X_A_upp_wT, alpha=0.5)
 ax1.set_xlabel('Time (s)')
 ax1.set_ylabel(r'$X_A$')
@@ -515,7 +642,7 @@ ax1.vlines(cld_low_t, ymin=0, ymax=1, linestyles='dashed',
            color=colors[2], transform=ax1.get_xaxis_transform())
 ax1.vlines(cld_up_t, ymin=0, ymax=1, linestyles='dashed',
            color=colors[2], transform=ax1.get_xaxis_transform())
-ax1.set_ylim((-1.25e38, 2.5e39))
+# ax1.set_ylim((-1.25e38, 2.5e39))
 
 # Access parameter sublpot with P_sep
 ax2.plot(time_wP, X_A_wP)
@@ -531,7 +658,23 @@ ax2.vlines(cld_low_t, ymin=0, ymax=1, linestyles='dashed',
            color=colors[2], transform=ax2.get_xaxis_transform())
 ax2.vlines(cld_up_t, ymin=0, ymax=1, linestyles='dashed',
            color=colors[2], transform=ax2.get_xaxis_transform())
-ax2.set_ylim((-2.5e44, 5.3e45))
+# ax2.set_ylim((-2.5e44, 5.3e45))
+
+# Access parameter sublpot with P_sep
+ax3.plot(time_w2pm, X_A_w2pm)
+ax3.fill_between(time_w2pm, X_A_low_w2pm, X_A_upp_w2pm, alpha=0.5)
+ax3.set_xlabel('Time (s)')
+ax3.set_ylabel(r'$X_A$')
+ax3.vlines(rad_start, ymin=0, ymax=1, linestyles='dotted',
+           color=colors[1], transform=ax3.get_xaxis_transform())
+ax3.fill_between(cld_intervals, 0, 1, where=cld_highlight,
+                 color=colors[2], alpha=0.2,
+                 transform=ax3.get_xaxis_transform())
+ax3.vlines(cld_low_t, ymin=0, ymax=1, linestyles='dashed',
+           color=colors[2], transform=ax3.get_xaxis_transform())
+ax3.vlines(cld_up_t, ymin=0, ymax=1, linestyles='dashed',
+           color=colors[2], transform=ax3.get_xaxis_transform())
+# ax3.set_ylim((-2.5e44, 5.3e45))
 
 # Show plot or save
 plt.tight_layout(pad=0.1)

@@ -60,15 +60,15 @@ class SFIOCF01():
         if interpolate:
             not_nan = ~np.isnan(self.flux)
             compl = inter.UnivariateSpline(self.time[not_nan],
-                                           self.flux[not_nan], s=0)
+                                           self.flux[not_nan], s=0, k=2)
             self.flux = compl(self.time)
 
             compl_low = inter.UnivariateSpline(self.time[not_nan],
-                                               self.f_lower[not_nan], s=0)
+                                               self.f_lower[not_nan], s=0, k=2)
             self.f_lower = compl_low(self.time)
 
             compl_upp = inter.UnivariateSpline(self.time[not_nan],
-                                               self.f_upper[not_nan], s=0)
+                                               self.f_upper[not_nan], s=0, k=2)
             self.f_upper = compl_upp(self.time)
 
     def getobject(self, name: str):

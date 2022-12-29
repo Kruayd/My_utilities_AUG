@@ -63,12 +63,16 @@ ax2 = plt.subplot2grid((2, 1), (1, 0), rowspan=1, colspan=1)
 
 ax1.set_title(f'Shot #{SHOT}', loc='right')
 ax1.plot(time_ddc, ddc)
+ax1.axvline(5.25, color='black', linestyle='--')
+ax1.axvline(6.90, color='black', linestyle='--')
 ax1.set_xlabel(X_LABEL)
 ax1.set_ylabel(r'Radiation flux (W m$^{-2}$)')
 
 ax2.plot(time_Te, Te[9])
 ax2.plot(time_Te, Te[10])
 ax2.plot(time_Te, Te[11])
+ax2.axvline(5.25, color='black', linestyle='--')
+ax2.axvline(6.90, color='black', linestyle='--')
 ax2.set_xlabel(X_LABEL)
 ax2.set_ylabel(r'Electron temperature (eV)')
 
