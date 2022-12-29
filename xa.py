@@ -129,7 +129,7 @@ shot_end = df_shot_time['end']
 # data analysis, ionization manometers, total injected power and power radiated
 # inside the separatrix
 
-OVERRIDE = True
+OVERRIDE = False
 
 fpg = sf.SFREAD(shot, FPG_DIAG)
 equ = sf.EQU(shot, diag=mag_equ_diag)

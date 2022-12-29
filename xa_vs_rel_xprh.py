@@ -26,8 +26,8 @@ import calibrators as cal
 # GLOBAL VARIABLES
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Plot sizes
-WID = 5.512
-HIG = 2*WID / 1.618
+WID = 2*5.512
+HIG = WID / 1.618
 
 
 # OPTIONS HANDLER
@@ -93,9 +93,9 @@ for shot in [40365, 40366, 41158]:
                              '_XPR_position.csv', index_col=0)
     time_xpr = df_pos_xpr.index.values
     rho_xpr = df_pos_xpr['rho pol'].values
-    rho_xpr_l = df_pos_xpr['rho pol lower limit'].values
-    rho_xpr_u = df_pos_xpr['rho pol upper limit'].values
 
+
+    OVERRIDE = True
 
     # QUERYING SHOTS
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -104,9 +104,9 @@ for shot in [40365, 40366, 41158]:
     fpg = sf.SFREAD(shot, FPG_DIAG)
     equ = sf.EQU(shot, diag=mag_equ_diag)
     ida = sf.SFREAD(shot, 'IDA')
-    ioc = cal.SFIOCF01(shot)
-    ioc_low = cal.SFIOCF01(shot, sensitivity=2.86)
-    ioc_upp = cal.SFIOCF01(shot, sensitivity=2.17)
+    ioc = cal.SFIOCF01(shot, interpolate=OVERRIDE)
+    ioc_low = cal.SFIOCF01(shot, sensitivity=2.86, interpolate=OVERRIDE)
+    ioc_upp = cal.SFIOCF01(shot, sensitivity=2.17, interpolate=OVERRIDE)
     tot = sf.SFREAD(shot, 'TOT')
     bpt = sf.SFREAD(shot, 'BPT', exp='DAVIDP')
 
@@ -130,17 +130,21 @@ for shot in [40365, 40366, 41158]:
 
     if ida.status:
         T_u_matrix = ida.getobject('Te', cal=True).astype(np.double)
+        T_u_low_matrix = ida.getobject('Te_lo', cal=True).astype(np.double)
+        T_u_upp_matrix = ida.getobject('Te_up', cal=True).astype(np.double)
         n_u_matrix = ida.getobject('ne', cal=True).astype(np.double)
+        n_u_low_matrix = ida.getobject('ne_lo', cal=True).astype(np.double)
+        n_u_upp_matrix = ida.getobject('ne_up', cal=True).astype(np.double)
         area_ida = ida.getareabase('Te')
         time_ida = ida.gettimebase('Te')
         # Choosing separatrix data
         ida_idx = sgpr.find_nearest_index(area_ida, 1.0, axis=0)
         T_u = T_u_matrix[ida_idx, np.arange(time_ida.size)]
-        T_u_low = T_u_matrix[ida_idx + 2, np.arange(time_ida.size)]
-        T_u_upp = T_u_matrix[ida_idx - 1, np.arange(time_ida.size)]
+        T_u_low = T_u_low_matrix[ida_idx, np.arange(time_ida.size)]
+        T_u_upp = T_u_upp_matrix[ida_idx, np.arange(time_ida.size)]
         n_u = n_u_matrix[ida_idx, np.arange(time_ida.size)]
-        n_u_low = n_u_matrix[ida_idx + 2, np.arange(time_ida.size)]
-        n_u_upp = n_u_matrix[ida_idx - 1, np.arange(time_ida.size)]
+        n_u_low = n_u_low_matrix[ida_idx, np.arange(time_ida.size)]
+        n_u_upp = n_u_upp_matrix[ida_idx, np.arange(time_ida.size)]
     else:
         sys.exit('Error while loading IDA')
 
@@ -209,8 +213,6 @@ for shot in [40365, 40366, 41158]:
 
     # Slice XPR quantities and relative time
     rho_xpr = rho_xpr[..., start_index_xpr:end_index_xpr + 1]
-    rho_xpr_l = rho_xpr_l[..., start_index_xpr:end_index_xpr + 1]
-    rho_xpr_u = rho_xpr_u[..., start_index_xpr:end_index_xpr + 1]
     time_xpr = time_xpr[..., start_index_xpr:end_index_xpr + 1]
 
     # Slice FPG quantities and relative time
@@ -327,8 +329,6 @@ for shot in [40365, 40366, 41158]:
 
     # Apply gaussian filter to XPR quantities
     rho_xpr_wT = ndm.gaussian_filter(rho_xpr, f_s_xpr / (2 * f_s_wT))
-    rho_xpr_l_wT = ndm.gaussian_filter(rho_xpr_l, f_s_xpr / (2 * f_s_wT))
-    rho_xpr_u_wT = ndm.gaussian_filter(rho_xpr_u, f_s_xpr / (2 * f_s_wT))
 
     # Apply gaussian filter to FPG quantities
     R_0_wT = ndm.gaussian_filter(r_magax, f_s_fpg / (2 * f_s_wT))
@@ -352,8 +352,6 @@ for shot in [40365, 40366, 41158]:
     # Re-slice XPR quantities
     xpr_indexes_wT, _ = sgpr.find_nearest_multiple_index(time_xpr, time_wT)
     rho_xpr_wT = rho_xpr_wT[xpr_indexes_wT]
-    rho_xpr_l_wT = rho_xpr_l_wT[xpr_indexes_wT]
-    rho_xpr_u_wT = rho_xpr_u_wT[xpr_indexes_wT]
     time_xpr_wT = time_xpr[xpr_indexes_wT]
 
     # Re-slice FPG quantities
@@ -417,15 +415,10 @@ for shot in [40365, 40366, 41158]:
                                                          cld_end_xpr_wT_idx)
                                for idx in range(start, end + 1)])
     cld_rho_xpr_wT = rho_xpr_wT[cld_xpr_wT_idx]
-    cld_rho_xpr_l_wT = rho_xpr_l_wT[cld_xpr_wT_idx]
-    cld_rho_xpr_u_wT = rho_xpr_u_wT[cld_xpr_wT_idx]
 
     # PLOT
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    ax1.errorbar(cld_X_A_wT, 1-cld_rho_xpr_wT, xerr=[cld_X_A_wT - cld_X_A_lwT,
-                                                     cld_X_A_uwT - cld_X_A_wT],
-                 yerr=[cld_rho_xpr_u_wT-cld_rho_xpr_wT,
-                       cld_rho_xpr_wT-cld_rho_xpr_l_wT],
+    ax1.errorbar(cld_X_A_wT, 1-cld_rho_xpr_wT,
                  fmt='o', label=f'{shot}')
 
 
